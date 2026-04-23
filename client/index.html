@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Waiting Game</title>
+  <style>
+    :root {
+      --bg:         #f4efe6;
+      --text:       #2c2416;
+      --muted:      #8a7a60;
+      --border:     #d4c9b0;
+      --ghost:      #c8bfa8;
+      --winner-bg:  #1e3320;
+      --winner-fg:  #8fc99a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 20px 32px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .position-number {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 44px;
+      font-weight: bold;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .position-label {
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    .departure-counter {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    /* ── Winner announcement ── */
+    .announcement {
+      background: var(--winner-bg);
+      color: var(--winner-fg);
+      padding: 9px 32px;
+      font-size: 13px;
+      border-bottom: 1px solid #2d4a33;
+      flex-shrink: 0;
+      display: none;
+    }
+    .announcement.visible { display: block; }
+
+    /* ── Status ── */
+    .status {
+      padding: 7px 32px;
+      font-size: 13px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-style: italic;
+      flex-shrink: 0;
+      min-height: 30px;
+    }
+
+    /* ── Main viewport ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 32px;
+      overflow: hidden;
+    }
+
+    .strip-container {
+      position: relative;
+    }
+
+    /* Position labels */
+    .strip-labels {
+      height: 18px;
+      position: relative;
+      margin-bottom: 4px;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .strip-label {
+      position: absolute;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    /* The checkbox strip */
+    .strip {
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 0;
+      min-height: 44px;
+      gap: 0;
+    }
+
+    .slot {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+      transition: opacity 30s linear;
+    }
+
+    .slot input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      cursor: default;
+      accent-color: var(--text);
+      pointer-events: none;
+    }
+
+    /* User's own slot */
+    .slot.mine {
+      outline: 1px dashed var(--muted);
+      outline-offset: -3px;
+    }
+
+    /* Eligible to check */
+    .slot.eligible input {
+      cursor: pointer;
+      pointer-events: all;
+    }
+
+    /* Ghost: someone just left — fade via transition already on .slot */
+    .slot.ghost {
+      opacity: 0.12;
+    }
+
+    /* Pointer below strip */
+    .strip-pointer {
+      position: relative;
+      height: 20px;
+      margin-top: 4px;
+    }
+    .pointer-label {
+      position: absolute;
+      font-size: 11px;
+      color: var(--muted);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-style: italic;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 10px 32px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Connecting overlay ── */
+    .connecting {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-style: italic;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="position-number" id="pos-number">—</div>
+  <div class="position-label" id="pos-label">connecting...</div>
+  <div class="departure-counter" id="departure-counter"></div>
+</div>
+
+<div class="announcement" id="announcement"></div>
+
+<div class="status" id="status">The contest is running. It has always been running.</div>
+
+<div class="main" id="main">
+  <div class="connecting" id="connecting-msg">Joining the line...</div>
+
+  <div class="strip-container" id="strip-container" style="display:none">
+    <div class="strip-labels" id="strip-labels"></div>
+    <div class="strip" id="strip"></div>
+    <div class="strip-pointer" id="strip-pointer"></div>
+  </div>
+</div>
+
+<div class="footer">
+  The Waiting Game &nbsp;·&nbsp; The contest does not have an opinion about your choices.
+</div>
+
+<script>
+(function () {
+  // ── Token ──
+  let token = localStorage.getItem('wg_token');
+  if (!token) {
+    token = crypto.randomUUID();
+    localStorage.setItem('wg_token', token);
+  }
+
+  // ── State ──
+  let mySeq = null;
+  let myPosition = null;
+  let myChecked = false;
+  let departuresTotal = 0;
+
+  // Map<seq, { position, state: 'waiting'|'checked'|'ghost' }>
+  const slots = new Map();
+
+  // ── DOM refs ──
+  const $posNumber      = document.getElementById('pos-number');
+  const $posLabel       = document.getElementById('pos-label');
+  const $departureCounter = document.getElementById('departure-counter');
+  const $announcement   = document.getElementById('announcement');
+  const $status         = document.getElementById('status');
+  const $connectingMsg  = document.getElementById('connecting-msg');
+  const $stripContainer = document.getElementById('strip-container');
+  const $strip          = document.getElementById('strip');
+  const $stripLabels    = document.getElementById('strip-labels');
+  const $stripPointer   = document.getElementById('strip-pointer');
+
+  // ── WebSocket ──
+  const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  const ws = new WebSocket(wsUrl);
+
+  function send(msg) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+    }
+  }
+
+  // ── Ping loop ──
+  let pingInterval = null;
+
+  function startPingLoop() {
+    pingInterval = setInterval(() => send({ type: 'ping' }), 5000);
+  }
+
+  // ── Rendering ──
+  const SLOT_WIDTH = 24;
+  const MAX_VISIBLE = 60; // show at most 60 slots centred on user
+
+  function render() {
+    const allSeqs = [...slots.keys()].sort((a, b) => a - b);
+    const total = allSeqs.length;
+
+    if (total === 0 || mySeq === null) return;
+
+    // Window: centred on user's seq, up to MAX_VISIBLE slots
+    const myIdx = allSeqs.indexOf(mySeq);
+    const half = Math.floor(MAX_VISIBLE / 2);
+    const startIdx = Math.max(0, myIdx - half);
+    const endIdx   = Math.min(total - 1, startIdx + MAX_VISIBLE - 1);
+    const visible  = allSeqs.slice(startIdx, endIdx + 1);
+
+    // Clear
+    $strip.innerHTML = '';
+    $stripLabels.innerHTML = '';
+    $stripPointer.innerHTML = '';
+
+    const isEligible = !myChecked && [...slots.values()]
+      .filter(s => s.seq < mySeq && s.state === 'waiting')
+      .length === 0;
+
+    visible.forEach((seq, visIdx) => {
+      const slot = slots.get(seq);
+      if (!slot) return;
+
+      const el = document.createElement('div');
+      el.className = 'slot';
+      el.dataset.seq = seq;
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.disabled = true;
+      cb.checked = slot.state === 'checked';
+
+      const isMine = seq === mySeq;
+
+      if (isMine) {
+        el.classList.add('mine');
+        if (isEligible && !myChecked) {
+          el.classList.add('eligible');
+          cb.disabled = false;
+          cb.addEventListener('change', () => {
+            if (cb.checked) send({ type: 'check', token });
+          });
+        }
+      }
+
+      if (slot.state === 'ghost') {
+        el.classList.add('ghost');
+        // trigger reflow so transition fires
+        requestAnimationFrame(() => el.classList.add('ghost'));
+      }
+
+      el.appendChild(cb);
+      $strip.appendChild(el);
+
+      // Position label every 5 visible slots
+      if (visIdx % 5 === 0) {
+        const lbl = document.createElement('div');
+        lbl.className = 'strip-label';
+        lbl.style.left = (visIdx * SLOT_WIDTH + SLOT_WIDTH / 2) + 'px';
+        lbl.textContent = '#' + (slot.position + 1);
+        $stripLabels.appendChild(lbl);
+      }
+
+      // Pointer below user's slot
+      if (isMine) {
+        const ptr = document.createElement('div');
+        ptr.className = 'pointer-label';
+        ptr.style.left = (visIdx * SLOT_WIDTH + SLOT_WIDTH / 2) + 'px';
+        ptr.textContent = myChecked ? '✓ you' : '▲ you';
+        $stripPointer.appendChild(ptr);
+      }
+    });
+  }
+
+  function updatePosition(pos) {
+    myPosition = pos;
+    if (myChecked) {
+      $posNumber.textContent = '✓';
+      $posLabel.textContent = 'you checked your box.';
+      $status.textContent = 'You have checked your box. The contest notes your participation.';
+    } else if (pos === 0) {
+      $posNumber.textContent = '#1';
+      $posLabel.textContent = 'first in line';
+    } else {
+      $posNumber.textContent = '#' + (pos + 1).toLocaleString();
+      $posLabel.textContent = 'in line';
+    }
+  }
+
+  function updateDepartures() {
+    if (departuresTotal === 0) {
+      $departureCounter.textContent = '';
+      return;
+    }
+    $departureCounter.innerHTML =
+      departuresTotal.toLocaleString() + ' have been<br>returned to the world today.';
+  }
+
+  function showAnnouncement(text) {
+    $announcement.textContent = text;
+    $announcement.classList.add('visible');
+    setTimeout(() => $announcement.classList.remove('visible'), 12000);
+  }
+
+  function formatDuration(ms) {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ' + (s % 60) + 's';
+    const h = Math.floor(m / 60);
+    return h + 'h ' + (m % 60) + 'm';
+  }
+
+  // ── Message handling ──
+  ws.addEventListener('open', () => {
+    send({ type: 'join', token });
+  });
+
+  ws.addEventListener('message', (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+
+    switch (msg.type) {
+
+      case 'joined': {
+        mySeq = msg.seq;
+        $connectingMsg.style.display = 'none';
+        $stripContainer.style.display = 'block';
+        updatePosition(msg.position);
+        startPingLoop();
+        $status.textContent =
+          msg.position === 0
+            ? 'You are first in line. It is your turn when you are ready.'
+            : 'You are in line. The contest is aware of your presence.';
+        break;
+      }
+
+      case 'join_rejected': {
+        $connectingMsg.textContent = 'The line was unavailable. You may try again shortly.';
+        break;
+      }
+
+      case 'range_state': {
+        // Replace all slot state with what the server knows
+        slots.clear();
+        for (const s of msg.slots) {
+          slots.set(s.seq, { seq: s.seq, position: s.position, state: s.state });
+        }
+        render();
+        break;
+      }
+
+      case 'range_update': {
+        // New or updated slot
+        slots.set(msg.seq, { seq: msg.seq, position: msg.position, state: msg.state });
+        if (msg.seq === mySeq && msg.state === 'checked') {
+          myChecked = true;
+        }
+        render();
+        break;
+      }
+
+      case 'position_update': {
+        updatePosition(msg.position);
+        // Update position of user's own slot in the map
+        if (mySeq !== null && slots.has(mySeq)) {
+          slots.get(mySeq).position = msg.position;
+        }
+        render();
+        break;
+      }
+
+      case 'left': {
+        const s = slots.get(msg.seq);
+        if (s) {
+          // Ghost briefly, then remove
+          s.state = 'ghost';
+          render();
+          setTimeout(() => {
+            slots.delete(msg.seq);
+            render();
+          }, 30000);
+        }
+        departuresTotal = msg.departures_today;
+        updateDepartures();
+        break;
+      }
+
+      case 'check_ok': {
+        myChecked = true;
+        const s = slots.get(mySeq);
+        if (s) s.state = 'checked';
+        updatePosition(msg.position);
+        $status.textContent = 'You have checked your box. The contest notes your participation.';
+        render();
+        break;
+      }
+
+      case 'check_rejected': {
+        if (msg.reason === 'not_eligible') {
+          $status.textContent = 'It is not yet your turn. The box remains unavailable.';
+        }
+        // Re-render to reset the checkbox visual
+        const s = slots.get(mySeq);
+        if (s) { /* state unchanged */ }
+        render();
+        break;
+      }
+
+      case 'winner': {
+        const dur = formatDuration(msg.duration_ms);
+        const pos = '#' + (msg.position + 1).toLocaleString();
+        showAnnouncement(
+          `A contestant at position ${pos} has checked their box after ${dur}. ` +
+          `They have been recorded. The line continues.`
+        );
+        if (msg.seq !== mySeq) {
+          $status.textContent = 'Someone ahead of you has finished. The line adjusts.';
+        }
+        break;
+      }
+
+      case 'pong':
+        break;
+
+      default:
+        break;
+    }
+  });
+
+  ws.addEventListener('close', () => {
+    if (pingInterval) clearInterval(pingInterval);
+    $status.textContent = 'The connection has been lost. Reload to rejoin at the back of the line.';
+  });
+
+  ws.addEventListener('error', () => {
+    $status.textContent = 'The connection encountered a difficulty.';
+  });
+
+})();
+</script>
+</body>
+</html>
