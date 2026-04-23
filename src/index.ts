@@ -63,7 +63,8 @@ function handleDeparture(token: string) {
   // Close the socket if it's still open
   try {
     if (client.ws.readyState === WebSocket.OPEN) client.ws.terminate();
-  } catch {
+  } catch (_err) {
+    console.warn(`[handleDeparture] Error terminating socket for seq ${client.seq}:`, _err);
     // Already closed or disconnected
   }
 
