@@ -34,4 +34,36 @@ export class SupabaseAuth implements IAuth {
       }
     };
   }
+
+  async signUp(email: string, password: string): Promise<{ token: string; user: AuthUser }> {
+    const { data, error } = await this.client.auth.signUp({ email, password });
+    if (error || !data.session || !data.user) {
+      throw new Error(`Supabase sign-up failed: ${error?.message}`);
+    }
+
+    return {
+      token: data.session.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        is_anonymous: false
+      }
+    };
+  }
+
+  async signIn(email: string, password: string): Promise<{ token: string; user: AuthUser }> {
+    const { data, error } = await this.client.auth.signInWithPassword({ email, password });
+    if (error || !data.session || !data.user) {
+      throw new Error(`Supabase sign-in failed: ${error?.message}`);
+    }
+
+    return {
+      token: data.session.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        is_anonymous: false
+      }
+    };
+  }
 }

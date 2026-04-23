@@ -63,20 +63,68 @@ The frontend design language is codified in `VISUAL_SYSTEM.md`:
 - **Hosting:** Targeted for Fly.io or Railway, where the Node.js application and Redis instance can be co-located for low-latency TCP communication.
 - **Process Management:** `concurrently` is used for local unified startup (`npm run dev:all`).
 
+## User Features & Persistence
+
+To support long-term engagement and social mechanics, the application will introduce authenticated accounts, badges, and a "follow" system.
+
+### Inferred Database Schema (Storage Tool)
+
+#### 1. `users` Table
+- `id`: UUID (Primary Key, matches Auth ID)
+- `username`: String (Unique)
+- `active_token`: String (Nullable, current live checkbox session)
+- `created_at`: Timestamp
+
+#### 2. `named_checkboxes` Table
+- `id`: UUID (Primary Key)
+- `user_id`: UUID (Foreign Key to users.id)
+- `token`: String (The session token used in the queue)
+- `name`: String (The whimsical name assigned to the box)
+- `is_active`: Boolean (True while the tab is open)
+- `created_at`: Timestamp
+
+#### 3. `badges` Table
+- `id`: String (Primary Key, e.g., 'early-bird')
+- `name`: String
+- `description`: Text
+- `image_url`: String
+
+#### 4. `user_badges` Table
+- `user_id`: UUID (Foreign Key)
+- `badge_id`: String (Foreign Key)
+- `awarded_at`: Timestamp
+
+#### 5. `follows` Table
+- `user_id`: UUID (Foreign Key, the follower)
+- `target_token`: String (The token being followed)
+- `target_name`: String (Snapshot of the target's name)
+- `created_at`: Timestamp
+
 ---
 
 ## Implementation Plan for Remaining Weekends (Next Steps)
 
-### Overview & Current State
+### Weekend 7: User Accounts & Naming
+**Goal:** Allow users to create accounts and "claim" their current spot in line with a name.
 
-The project has successfully completed the foundational weekends (1-3):
+1. **Extend Auth Tool:** Add `signUp(email, password)` and `signIn(email, password)`.
+2. **Create UserWorker:** Handle profile creation and retrieval.
+3. **Naming Logic:**
+   - Update `QueueWorker.join` to associate a token with a `user_id` if authenticated.
+   - Implement `QueueWorker.nameCheckbox(token, name)` to persist the name to `named_checkboxes`.
+   - Ensure a user can only have one `is_active: true` checkbox at a time.
+4. **REST Handlers:** Add `/signup`, `/signin`, and `/checkbox/name`.
 
-- **Weekend 1:** Two-tab Proof of Concept is fully functional.
-- **Weekend 2:** Redis sorted set queue and heartbeat liveness are implemented.
-- **Weekend 3:** Virtual scroll frontend with a fixed DOM pool and correct relative scrolling is active.
-- **Architecture:** The backend has been successfully refactored into a tri-layered structure (Tools, Workers, Handlers) adhering to OpenAPI and AsyncAPI specifications with shared schemas.
+### Weekend 8: Badges & Follows
+**Goal:** Implement social proof and navigation shortcuts.
 
-The following plan details the step-by-step implementation for the remaining weekends.
+1. **BadgeWorker:** Implement logic to query `user_badges`. Add an internal hook to award badges (e.g., "The First Thousand").
+2. **FollowWorker:** Implement `follow(token)` and `listFollows()`.
+3. **REST Handlers:** Add `/user/badges` and `/follow`.
+4. **Frontend UI:**
+   - Add a "Follow" button to the viewport when clicking a checkbox.
+   - Add a "My Follows" panel for quick scrolling.
+   - Display badges in the user header.
 
 ---
 

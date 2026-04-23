@@ -1,6 +1,91 @@
 import { Request, Response } from 'express';
 import { queueWorker } from '../../workers/queue/index.js';
+import { userWorker } from '../../workers/user/index.js';
+import { badgeWorker, followWorker } from '../../workers/social/index.js';
 import { broadcastToAll, broadcastToSubscribers } from '../websocket/shared.js';
+
+const authenticate = async (req: Request) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.substring(7);
+  return await userWorker.validateSession(token);
+};
+
+export const signUpHandler = async (req: Request, res: Response) => {
+  const { username, email, password } = req.body;
+  try {
+    const result = await userWorker.signUp(username, email, password);
+    return res.json(result);
+  } catch (error: any) {
+    console.warn('Sign up error:', error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+export const signInHandler = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  try {
+    const result = await userWorker.signIn(email, password);
+    return res.json(result);
+  } catch (error: any) {
+    console.warn('Sign in error:', error);
+    return res.status(401).json({ error: error.message });
+  }
+};
+
+export const nameCheckboxHandler = async (req: Request, res: Response) => {
+  const user = await authenticate(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { token, name } = req.body;
+  try {
+    await queueWorker.nameCheckbox(user.id, token, name);
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('Name checkbox error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getBadgesHandler = async (req: Request, res: Response) => {
+  const user = await authenticate(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const badges = await badgeWorker.getUserBadges(user.id);
+    return res.json({ badges });
+  } catch (error: any) {
+    console.error('Get badges error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const followHandler = async (req: Request, res: Response) => {
+  const user = await authenticate(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { target_token, target_name } = req.body;
+  try {
+    await followWorker.follow(user.id, target_token, target_name);
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('Follow error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const listFollowsHandler = async (req: Request, res: Response) => {
+  const user = await authenticate(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const follows = await followWorker.getFollows(user.id);
+    return res.json({ follows });
+  } catch (error: any) {
+    console.error('List follows error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 export const joinHandler = async (req: Request, res: Response) => {
   const { token } = req.body;
@@ -32,7 +117,6 @@ export const checkHandler = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not eligible or already checked' });
     }
 
-    // Trigger broadcasts to WebSocket clients
     await broadcastToAll({ 
       type: 'winner', 
       seq: result.seq, 

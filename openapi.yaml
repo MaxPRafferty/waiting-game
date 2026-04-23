@@ -4,6 +4,131 @@ info:
   version: 0.1.0
   description: API for the sequential checkbox waiting game.
 paths:
+  /signup:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successfully registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: 'schemas.yaml#/components/schemas/User'
+                  token:
+                    type: string
+  /signin:
+    post:
+      summary: Sign in a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successfully signed in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: 'schemas.yaml#/components/schemas/User'
+                  token:
+                    type: string
+  /checkbox/name:
+    post:
+      summary: Name your current live checkbox
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Successfully named
+  /user/badges:
+    get:
+      summary: Get all badges for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  badges:
+                    type: array
+                    items:
+                      $ref: 'schemas.yaml#/components/schemas/Badge'
+  /follow:
+    post:
+      summary: Follow a checkbox
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_token:
+                  type: string
+                target_name:
+                  type: string
+      responses:
+        '200':
+          description: Successfully followed
+    get:
+      summary: List all followed checkboxes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  follows:
+                    type: array
+                    items:
+                      $ref: 'schemas.yaml#/components/schemas/Follow'
   /join:
     post:
       summary: Join the line
@@ -98,7 +223,7 @@ paths:
                   winners:
                     type: array
                     items:
-                      $ref: 'schemas.yaml#/components/schemas/WinnerEntry'
+                      $ref: '#/components/schemas/WinnerEntry'
   /og-image:
     get:
       summary: Get a dynamic OG image for a position
@@ -117,6 +242,11 @@ paths:
                 type: string
                 format: binary
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     WinnerEntry:
       $ref: 'schemas.yaml#/components/schemas/WinnerEntry'

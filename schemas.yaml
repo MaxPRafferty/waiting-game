@@ -26,3 +26,35 @@ components:
           type: integer
         departures_today:
           type: integer
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    Badge:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        image_url:
+          type: string
+    Follow:
+      type: object
+      properties:
+        target_token:
+          type: string
+        target_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
