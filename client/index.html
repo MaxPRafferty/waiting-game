@@ -236,6 +236,12 @@
   let myPosition = null;
   let myChecked = false;
   let departuresTotal = 0;
+  let totalSlots = 0;
+
+  // Virtual scroll state
+  let scrollOffset = 0; // The position (0-indexed) at the left of the viewport
+  let viewportWidth = 0;
+  const SLOT_WIDTH = 24;
 
   // Map<seq, { position, state: 'waiting'|'checked'|'ghost' }>
   const slots = new Map();
@@ -270,45 +276,47 @@
   }
 
   // ── Rendering ──
-  const SLOT_WIDTH = 24;
-  const MAX_VISIBLE = 60; // show at most 60 slots centred on user
-
   function render() {
-    const allSeqs = [...slots.keys()].sort((a, b) => a - b);
-    const total = allSeqs.length;
+    if (totalSlots === 0 || mySeq === null) return;
 
-    if (total === 0 || mySeq === null) return;
-
-    // Window: centred on user's seq, up to MAX_VISIBLE slots
-    const myIdx = allSeqs.indexOf(mySeq);
-    const half = Math.floor(MAX_VISIBLE / 2);
-    const startIdx = Math.max(0, myIdx - half);
-    const endIdx   = Math.min(total - 1, startIdx + MAX_VISIBLE - 1);
-    const visible  = allSeqs.slice(startIdx, endIdx + 1);
+    const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 2;
+    const startPos = Math.floor(scrollOffset);
+    const endPos = startPos + visibleCount;
 
     // Clear
     $strip.innerHTML = '';
     $stripLabels.innerHTML = '';
     $stripPointer.innerHTML = '';
 
+    // Create a range to show
+    const visiblePositions = [];
+    for (let i = startPos; i <= endPos; i++) {
+      if (i >= 0 && i < totalSlots) visiblePositions.push(i);
+    }
+
     const isEligible = !myChecked && [...slots.values()]
       .filter(s => s.seq < mySeq && s.state === 'waiting')
       .length === 0;
 
-    visible.forEach((seq, visIdx) => {
-      const slot = slots.get(seq);
+    visiblePositions.forEach((pos, visIdx) => {
+      // Find slot by position
+      const slot = [...slots.values()].find(s => s.position === pos);
       if (!slot) return;
 
       const el = document.createElement('div');
       el.className = 'slot';
-      el.dataset.seq = seq;
+      el.dataset.seq = slot.seq;
+      // Precise sub-pixel positioning based on scrollOffset
+      const left = (pos - scrollOffset) * SLOT_WIDTH;
+      el.style.position = 'absolute';
+      el.style.left = left + 'px';
 
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.disabled = true;
       cb.checked = slot.state === 'checked';
 
-      const isMine = seq === mySeq;
+      const isMine = slot.seq === mySeq;
 
       if (isMine) {
         el.classList.add('mine');
@@ -323,19 +331,17 @@
 
       if (slot.state === 'ghost') {
         el.classList.add('ghost');
-        // trigger reflow so transition fires
-        requestAnimationFrame(() => el.classList.add('ghost'));
       }
 
       el.appendChild(cb);
       $strip.appendChild(el);
 
-      // Position label every 5 visible slots
-      if (visIdx % 5 === 0) {
+      // Position label every 5 positions
+      if (pos % 5 === 0) {
         const lbl = document.createElement('div');
         lbl.className = 'strip-label';
-        lbl.style.left = (visIdx * SLOT_WIDTH + SLOT_WIDTH / 2) + 'px';
-        lbl.textContent = '#' + (slot.position + 1);
+        lbl.style.left = (left + SLOT_WIDTH / 2) + 'px';
+        lbl.textContent = '#' + (pos + 1);
         $stripLabels.appendChild(lbl);
       }
 
@@ -343,12 +349,42 @@
       if (isMine) {
         const ptr = document.createElement('div');
         ptr.className = 'pointer-label';
-        ptr.style.left = (visIdx * SLOT_WIDTH + SLOT_WIDTH / 2) + 'px';
+        ptr.style.left = (left + SLOT_WIDTH / 2) + 'px';
         ptr.textContent = myChecked ? '✓ you' : '▲ you';
         $stripPointer.appendChild(ptr);
       }
     });
   }
+
+  // ── Scroll Handling ──
+  let lastSubscribedRange = { from: -1, to: -1 };
+
+  function updateScroll(delta) {
+    const prevOffset = scrollOffset;
+    scrollOffset = Math.max(0, Math.min(totalSlots - 5, scrollOffset + delta / SLOT_WIDTH));
+    
+    if (scrollOffset !== prevOffset) {
+      render();
+      
+      const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
+      const from = Math.max(0, Math.floor(scrollOffset) - 5);
+      const to = from + visibleCount;
+
+      if (Math.abs(from - lastSubscribedRange.from) > 5 || Math.abs(to - lastSubscribedRange.to) > 5) {
+        send({ type: 'viewport_subscribe', from_position: from, to_position: to });
+        lastSubscribedRange = { from, to };
+      }
+    }
+  }
+
+  window.addEventListener('wheel', (e) => {
+    updateScroll(e.deltaY || e.deltaX);
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    viewportWidth = $strip.clientWidth;
+    render();
+  });
 
   function updatePosition(pos) {
     myPosition = pos;
@@ -405,8 +441,14 @@
 
       case 'joined': {
         mySeq = msg.seq;
+        myPosition = msg.position;
         $connectingMsg.style.display = 'none';
         $stripContainer.style.display = 'block';
+        viewportWidth = $strip.clientWidth;
+        
+        // Initial scroll to center on user
+        scrollOffset = Math.max(0, myPosition - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
+        
         updatePosition(msg.position);
         startPingLoop();
         $status.textContent =
@@ -422,8 +464,12 @@
       }
 
       case 'range_state': {
-        // Replace all slot state with what the server knows
+        totalSlots = msg.total;
+        // Keep my slot if it exists
+        const mine = mySeq !== null ? slots.get(mySeq) : null;
         slots.clear();
+        if (mine) slots.set(mySeq, mine);
+
         for (const s of msg.slots) {
           slots.set(s.seq, { seq: s.seq, position: s.position, state: s.state });
         }

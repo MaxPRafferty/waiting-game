@@ -104,6 +104,33 @@ export class QueueStore {
     }));
   }
 
+  // Get a range of slots, filling gaps with 'phantom' data if needed for the mock
+  getRange(fromPos: number, toPos: number, mockTotal: number): SlotSummary[] {
+    const summaries: SlotSummary[] = [];
+    const allClients = this.all();
+
+    for (let i = fromPos; i <= toPos; i++) {
+      if (i < 0 || i >= mockTotal) continue;
+
+      const realClient = allClients[i];
+      if (realClient) {
+        summaries.push({
+          seq: realClient.seq,
+          position: i,
+          state: realClient.checked ? 'checked' : 'waiting',
+        });
+      } else {
+        // Mock phantom slot
+        summaries.push({
+          seq: -1000 - i, // Fixed negative seq for phantoms
+          position: i,
+          state: 'waiting',
+        });
+      }
+    }
+    return summaries;
+  }
+
   // Clients with seq > given seq (behind a departed/checked slot)
   clientsBehind(seq: number): Client[] {
     return [...this.clients.values()].filter(c => c.seq > seq);

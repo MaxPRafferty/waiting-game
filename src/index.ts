@@ -12,6 +12,7 @@ const PING_INTERVAL_MS = 5_000;
 const STALE_THRESHOLD_MS = 12_000;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+const MOCK_TOTAL_SIZE = 1_000_000;
 
 // --- Rate limiting ---
 const joinRateMap = new Map<string, number[]>();
@@ -145,11 +146,13 @@ wss.on('connection', (ws, req) => {
         position: queue.getPosition(token),
       });
 
-      // Send full queue state to the new client
+      // Send initial range around the user
+      const start = Math.max(0, queue.getPosition(token) - 30);
+      const end = start + 60;
       send(ws, {
         type: 'range_state',
-        slots: queue.allSummaries(),
-        total: queue.size(),
+        slots: queue.getRange(start, end, MOCK_TOTAL_SIZE),
+        total: MOCK_TOTAL_SIZE,
       });
 
       // Tell all existing clients about the new slot
@@ -200,13 +203,12 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    // --- viewport_subscribe (ignored in weekend 1 — server always sends full state) ---
+    // --- viewport_subscribe ---
     if (msg.type === 'viewport_subscribe') {
-      // For weekend 1: just re-send the current full state
       send(ws, {
         type: 'range_state',
-        slots: queue.allSummaries(),
-        total: queue.size(),
+        slots: queue.getRange(msg.from_position, msg.to_position, MOCK_TOTAL_SIZE),
+        total: MOCK_TOTAL_SIZE,
       });
       return;
     }
@@ -221,7 +223,7 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// --- Heartbeat: evict stale connections ---
+// --- Heartbeat and Mock Activity ---
 setInterval(() => {
   const evicted = queue.evictStale(STALE_THRESHOLD_MS);
   for (const client of evicted) {
@@ -229,6 +231,40 @@ setInterval(() => {
     broadcast({ type: 'left', seq: client.seq, departures_today: departuresTotal });
     notifyPositionsBehind(client.seq);
   }
+
+  // --- Mock Activity: Occasionally simulate a phantom checking or leaving ---
+  if (Math.random() < 0.2) {
+    const mockPos = Math.floor(Math.random() * 50); // Simulate activity near the front
+    const mockDuration = Math.floor(Math.random() * 3600_000); // Up to 1h
+    
+    // Simulate winner announcement
+    broadcast({ 
+      type: 'winner', 
+      seq: -1000 - mockPos, 
+      position: mockPos, 
+      duration_ms: mockDuration 
+    });
+
+    // Simulate range update (checked)
+    broadcast({
+      type: 'range_update',
+      seq: -1000 - mockPos,
+      position: mockPos,
+      state: 'checked'
+    });
+  }
+
+  // Random phantom departure
+  if (Math.random() < 0.1) {
+    const mockPos = Math.floor(Math.random() * MOCK_TOTAL_SIZE);
+    departuresTotal++;
+    broadcast({ 
+      type: 'left', 
+      seq: -1000 - mockPos, 
+      departures_today: departuresTotal 
+    });
+  }
+
 }, PING_INTERVAL_MS);
 
 httpServer.listen(PORT, () => {
