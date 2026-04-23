@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { queueWorker } from '../../workers/queue/index.js';
 import { userWorker } from '../../workers/user/index.js';
 import { badgeWorker, followWorker } from '../../workers/social/index.js';
-import { broadcastToAll, broadcastToSubscribers } from '../websocket/shared.js';
+import { broadcastToAll, broadcastToSubscribers, notifyPositionsBehind } from '../websocket/shared.js';
 
 const authenticate = async (req: Request) => {
   const authHeader = req.headers.authorization;
@@ -29,6 +29,28 @@ export const signInHandler = async (req: Request, res: Response) => {
     return res.json(result);
   } catch (error: any) {
     console.warn('Sign in error:', error);
+    return res.status(401).json({ error: error.message });
+  }
+};
+
+export const sendOtpHandler = async (req: Request, res: Response) => {
+  const { email, phone } = req.body;
+  try {
+    await userWorker.sendOtp({ email, phone });
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.warn('Send OTP error:', error);
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+export const verifyOtpHandler = async (req: Request, res: Response) => {
+  const { email, phone, token, type } = req.body;
+  try {
+    const result = await userWorker.verifyOtp({ email, phone }, token, type);
+    return res.json(result);
+  } catch (error: any) {
+    console.warn('Verify OTP error:', error);
     return res.status(401).json({ error: error.message });
   }
 };
@@ -130,6 +152,8 @@ export const checkHandler = async (req: Request, res: Response) => {
       position: result.position, 
       state: 'checked' 
     });
+
+    await notifyPositionsBehind(result.seq);
 
     return res.json({
       position: result.position,

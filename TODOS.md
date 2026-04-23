@@ -27,3 +27,4 @@
 - [ ] Idea: We don't really want to stream updates continuously. They should get sent out in blasts of some number at the same time every few seconds
 - [ ] Idea: You can see and participate in the chat of anyone you are actively watching
 - [ ] Idea: It is possible for your number to get called early. Sometimes this is random, sometimes it is because people are watching you
+- [ ] Idea: Spot currency earned for waiting longer, that can be used to buy peoples items or place in line

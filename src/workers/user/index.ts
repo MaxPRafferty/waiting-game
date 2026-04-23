@@ -24,6 +24,27 @@ export class UserWorker {
     return { token, user: profile };
   }
 
+  async sendOtp(target: { email?: string; phone?: string }) {
+    await auth.sendOtp(target);
+  }
+
+  async verifyOtp(target: { email?: string; phone?: string }, code: string, type: 'email' | 'sms' | 'magiclink') {
+    const { token, user } = await auth.verifyOtp(target, code, type);
+    
+    let profile = await storage.get(this.USERS_COLLECTION, user.id);
+    if (!profile) {
+      // Create a default profile if they signed in via OTP for the first time
+      profile = {
+        id: user.id,
+        username: target.email || target.phone || 'anonymous',
+        created_at: new Date().toISOString()
+      };
+      await storage.save(this.USERS_COLLECTION, user.id, profile);
+    }
+    
+    return { token, user: profile };
+  }
+
   async getProfile(userId: string) {
     return await storage.get(this.USERS_COLLECTION, userId);
   }

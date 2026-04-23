@@ -66,4 +66,35 @@ export class SupabaseAuth implements IAuth {
       }
     };
   }
+
+  async sendOtp(target: { email?: string; phone?: string }): Promise<void> {
+    const { error } = await this.client.auth.signInWithOtp({
+      email: target.email || undefined,
+      phone: target.phone || undefined,
+    } as any);
+    if (error) throw new Error(`Supabase send OTP failed: ${error.message}`);
+  }
+
+  async verifyOtp(target: { email?: string; phone?: string }, token: string, type: 'email' | 'sms' | 'magiclink'): Promise<{ token: string; user: AuthUser }> {
+    const params: any = {
+      token,
+      type
+    };
+    if (target.email) params.email = target.email;
+    if (target.phone) params.phone = target.phone;
+
+    const { data, error } = await this.client.auth.verifyOtp(params);
+    if (error || !data.session || !data.user) {
+      throw new Error(`Supabase verify OTP failed: ${error?.message}`);
+    }
+
+    return {
+      token: data.session.access_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        is_anonymous: false
+      }
+    };
+  }
 }

@@ -24,4 +24,14 @@ export interface IAuth {
    * Signs in an existing user with email and password.
    */
   signIn(email: string, password: string): Promise<{ token: string; user: AuthUser }>;
+
+  /**
+   * Sends a One-Time Password (OTP) or Magic Link to email or phone.
+   */
+  sendOtp(target: { email?: string; phone?: string }): Promise<void>;
+
+  /**
+   * Verifies an OTP and returns the session token and user.
+   */
+  verifyOtp(target: { email?: string; phone?: string }, token: string, type: 'email' | 'sms' | 'magiclink'): Promise<{ token: string; user: AuthUser }>;
 }

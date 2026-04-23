@@ -58,6 +58,54 @@ paths:
                     $ref: 'schemas.yaml#/components/schemas/User'
                   token:
                     type: string
+  /auth/otp/send:
+    post:
+      summary: Send an OTP or Magic Link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: Successfully sent
+  /auth/otp/verify:
+    post:
+      summary: Verify an OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                phone:
+                  type: string
+                token:
+                  type: string
+                type:
+                  type: string
+                  enum: [email, sms, magiclink]
+      responses:
+        '200':
+          description: Successfully verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: 'schemas.yaml#/components/schemas/User'
+                  token:
+                    type: string
   /checkbox/name:
     post:
       summary: Name your current live checkbox

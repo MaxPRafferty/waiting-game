@@ -4,6 +4,8 @@ import * as restHandlers from './handlers/rest/index.js';
 export const bindRoutes = (app: Express) => {
   app.post('/signup', restHandlers.signUpHandler);
   app.post('/signin', restHandlers.signInHandler);
+  app.post('/auth/otp/send', restHandlers.sendOtpHandler);
+  app.post('/auth/otp/verify', restHandlers.verifyOtpHandler);
   app.post('/checkbox/name', restHandlers.nameCheckboxHandler);
   app.get('/user/badges', restHandlers.getBadgesHandler);
   app.post('/follow', restHandlers.followHandler);
