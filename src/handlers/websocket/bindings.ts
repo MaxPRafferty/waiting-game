@@ -9,7 +9,6 @@ export interface WebSocketContext {
   token: string | null;
   ws: WebSocket;
   tokenToWs: Map<string, WebSocket>;
-  departuresTotal: { value: number };
 }
 
 /**
@@ -134,18 +133,17 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
   }
 };
 
-export const handleDeparture = async (token: string, tokenToWs: Map<string, WebSocket>, departuresTotal: { value: number }) => {
+export const handleDeparture = async (token: string, tokenToWs: Map<string, WebSocket>) => {
   const client = await queueWorker.leave(token);
   if (!client) return;
 
-  departuresTotal.value++;
   tokenToWs.delete(token);
 
   // Notify range subscribers that this slot has departed
   await broadcastToSubscribers(client.seq, { 
     type: 'left', 
     seq: client.seq, 
-    departures_today: departuresTotal.value 
+    departures_today: client.departures_today 
   }, tokenToWs);
 
   // Everyone behind shifts forward

@@ -4,7 +4,6 @@ import { queueWorker } from '../../workers/queue/index.js';
 import type { ServerMessage } from '../../types.js';
 
 const tokenToWs = new Map<string, WebSocket>();
-const departuresTotal = { value: 0 };
 
 /**
  * Sends a message to all connections subscribed to the bucket containing the given sequence number.
@@ -47,8 +46,7 @@ export const initWebSocket = (wss: WebSocketServer) => {
     const ctx = {
       token: null as string | null,
       ws,
-      tokenToWs,
-      departuresTotal
+      tokenToWs
     };
 
     ws.on('message', async (raw) => {
@@ -62,7 +60,7 @@ export const initWebSocket = (wss: WebSocketServer) => {
 
     ws.on('close', async () => {
       if (ctx.token) {
-        await handleDeparture(ctx.token, tokenToWs, departuresTotal);
+        await handleDeparture(ctx.token, tokenToWs);
       }
     });
   });
@@ -71,26 +69,22 @@ export const initWebSocket = (wss: WebSocketServer) => {
   setInterval(async () => {
     const evicted = await queueWorker.cleanup();
     for (const client of evicted) {
-      departuresTotal.value++;
       tokenToWs.delete(client.token);
       
-      const departureMsg: ServerMessage = { type: 'left', seq: client.seq, departures_today: departuresTotal.value };
+      const departureMsg: ServerMessage = { 
+        type: 'left', 
+        seq: client.seq, 
+        departures_today: client.departures_today 
+      };
       await broadcastToSubscribers(client.seq, departureMsg);
       await notifyPositionsBehind(client.seq);
     }
 
     const activities = await queueWorker.getRandomActivity();
     for (const activity of activities) {
-      if (activity.type === 'left') {
-        departuresTotal.value++;
-        activity.departures_today = departuresTotal.value;
-      }
-      
       if (activity.type === 'winner') {
-        // Winners are global announcements
         broadcastToAll(activity);
       } else if ('seq' in activity) {
-        // Range-specific updates (including phantom check results)
         await broadcastToSubscribers(activity.seq, activity);
       }
     }

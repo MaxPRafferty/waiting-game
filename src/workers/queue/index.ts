@@ -1,5 +1,6 @@
 import { queue } from '../../tools/queue/index.js';
 import { subscription } from '../../tools/subscription/index.js';
+import { statistics } from '../../tools/statistics/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
@@ -30,8 +31,10 @@ export class QueueWorker {
     const client = await queue.remove(token);
     if (client) {
       await subscription.unsubscribe(token);
+      const departuresToday = await statistics.incrementDepartures();
+      return { ...client, departures_today: departuresToday };
     }
-    return client;
+    return null;
   }
 
   async subscribe(connectionId: string, fromPos: number, toPos: number) {
@@ -86,7 +89,13 @@ export class QueueWorker {
 
   async cleanup() {
     const evicted = await queue.evictStale(this.STALE_THRESHOLD_MS);
-    return evicted;
+    const results = [];
+    for (const client of evicted) {
+      await subscription.unsubscribe(client.token);
+      const departuresToday = await statistics.incrementDepartures();
+      results.push({ ...client, departures_today: departuresToday });
+    }
+    return results;
   }
 
   async getPositionsBehind(_seq: number) {
@@ -100,6 +109,10 @@ export class QueueWorker {
       });
     }
     return updates;
+  }
+
+  async getDeparturesToday() {
+    return await statistics.getDeparturesToday();
   }
 
   async getRandomActivity(): Promise<ServerMessage[]> {
@@ -126,10 +139,11 @@ export class QueueWorker {
     // Mock Departure
     if (Math.random() < 0.1) {
       const mockPos = Math.floor(Math.random() * this.mockTotal);
+      const departuresToday = await statistics.incrementDepartures();
       messages.push({ 
         type: 'left', 
         seq: -1000 - mockPos, 
-        departures_today: 0 
+        departures_today: departuresToday 
       });
     }
 
