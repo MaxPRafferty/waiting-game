@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { queueWorker } from '../../workers/queue/index.js';
+import { broadcastToAll, broadcastToSubscribers } from '../websocket/shared.js';
 
 export const joinHandler = async (req: Request, res: Response) => {
   const { token } = req.body;
@@ -30,6 +31,22 @@ export const checkHandler = async (req: Request, res: Response) => {
     if (!result.success) {
       return res.status(403).json({ error: 'Not eligible or already checked' });
     }
+
+    // Trigger broadcasts to WebSocket clients
+    await broadcastToAll({ 
+      type: 'winner', 
+      seq: result.seq, 
+      position: result.position, 
+      duration_ms: result.duration_ms 
+    });
+
+    await broadcastToSubscribers(result.seq, { 
+      type: 'range_update', 
+      seq: result.seq, 
+      position: result.position, 
+      state: 'checked' 
+    });
+
     return res.json({
       position: result.position,
       duration_ms: result.duration_ms

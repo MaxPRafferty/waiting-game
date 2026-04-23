@@ -253,10 +253,10 @@
 <script>
 (function () {
   const token = (function() {
-    let t = localStorage.getItem('wg_token');
+    let t = sessionStorage.getItem('wg_token');
     if (!t) {
       t = crypto.randomUUID();
-      localStorage.setItem('wg_token', t);
+      sessionStorage.setItem('wg_token', t);
     }
     return t;
   })();

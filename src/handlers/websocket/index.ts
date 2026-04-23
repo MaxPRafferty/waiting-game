@@ -1,52 +1,19 @@
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer } from 'ws';
 import { handleMessage, handleDeparture } from './bindings.js';
 import { queueWorker } from '../../workers/queue/index.js';
 import type { ServerMessage } from '../../types.js';
-
-const tokenToWs = new Map<string, WebSocket>();
-
-/**
- * Sends a message to all connections subscribed to the bucket containing the given sequence number.
- */
-async function broadcastToSubscribers(seq: number, msg: ServerMessage) {
-  const subscribers = await queueWorker.getSubscribers(seq);
-  for (const token of subscribers) {
-    const targetWs = tokenToWs.get(token);
-    if (targetWs) targetWs.send(JSON.stringify(msg));
-  }
-}
-
-/**
- * Sends a message to ALL connected clients.
- */
-function broadcastToAll(msg: ServerMessage) {
-  for (const targetWs of tokenToWs.values()) {
-    targetWs.send(JSON.stringify(msg));
-  }
-}
-
-/**
- * Notifies all clients behind a given sequence that their position has updated.
- */
-async function notifyPositionsBehind(seq: number) {
-  const updates = await queueWorker.getPositionsBehind(seq);
-  for (const update of updates) {
-    const targetWs = tokenToWs.get(update.token);
-    if (targetWs) {
-      targetWs.send(JSON.stringify({
-        type: 'position_update',
-        position: update.position,
-      }));
-    }
-  }
-}
+import { 
+  tokenToWs, 
+  broadcastToSubscribers, 
+  broadcastToAll, 
+  notifyPositionsBehind 
+} from './shared.js';
 
 export const initWebSocket = (wss: WebSocketServer) => {
   wss.on('connection', (ws) => {
     const ctx = {
       token: null as string | null,
-      ws,
-      tokenToWs
+      ws
     };
 
     ws.on('message', async (raw) => {
@@ -60,7 +27,7 @@ export const initWebSocket = (wss: WebSocketServer) => {
 
     ws.on('close', async () => {
       if (ctx.token) {
-        await handleDeparture(ctx.token, tokenToWs);
+        await handleDeparture(ctx.token);
       }
     });
   });
@@ -82,7 +49,10 @@ export const initWebSocket = (wss: WebSocketServer) => {
 
     const activities = await queueWorker.getRandomActivity();
     for (const activity of activities) {
-      if (activity.type === 'winner') {
+      if (activity.type === 'left') {
+        // Mock departure handled in worker already incremented stats
+        await broadcastToSubscribers(activity.seq, activity);
+      } else if (activity.type === 'winner') {
         broadcastToAll(activity);
       } else if ('seq' in activity) {
         await broadcastToSubscribers(activity.seq, activity);
