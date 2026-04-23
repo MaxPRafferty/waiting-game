@@ -3,12 +3,18 @@
 ## The High-Level Vibe: "Purposeful Absurdity"
 The aesthetic is a marriage of **institutional indifference** and **whimsical irreverence**. It should feel like a government bureau run by slightly bored, immortal toddlers. It is silly, it is whimsical, but it is not "random"—every strange choice should feel like it was made with a very specific, albeit nonsensical, purpose.
 
-### Core Pillars
-1. **The Void's Comfort:** The background is `#16161d` (Eigengrau). This is the color of the back of your eyelids. It is the "darkness that isn't black," providing a canvas for the absurdity to pop.
-2. **Inverted Reality:** Everything that was light is now dark; everything dark is now light. We are playing in the negative space of the internet.
-3. **Bloated UI:** Elements are intentionally large (1.4x scale). This is the "Grandeur of the Minute." A checkbox should feel like a significant life choice.
-4. **Whimsical Deadpan:** The UI elements are precise and functional, but their labels or placement might be irreverent. The "Pointer" doesn't just point; it acknowledges your tiny existence with a sigh.
-5. **Indifferent Palette:** While we use high contrast, the colors should feel slightly "off"—institutional greens, dusty pinks, or the color of a faded post office receipt, but inverted for the Eigengrau void.
+## Color Palette: "Vibrant Indifference"
+The Void's Comfort (`#16161d`) is the base, but it is now punctuated by colors that feel both cheerful and slightly "wrong."
+
+- **Primary Brand:** `#ffcc00` (Mustard of Authority).
+- **Secondary Brand:** `#cc99ff` (Indifferent Lavender).
+
+### Highlight Tints (Applied Randomly)
+- **Positive:** `['#00ffcc', '#99ff99', '#ff99cc']` (Mint, Lime, Bubblegum)
+- **Negative:** `['#ff5050', '#ff9900', '#ff00ff']` (Cinnabar, Safety Orange, Electric Purple)
+
+## Component Behavior
+- **Messages:** When an announcement or status update occurs, a random color from the appropriate (Positive/Negative) pool is applied to the background or text to emphasize the whimsical nature of the event.
 
 ## Typography & Scale
 - **Font:** Georgia / Serif. The font of old newspapers and legal documents you don't want to read.

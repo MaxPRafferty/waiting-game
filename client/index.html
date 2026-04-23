@@ -12,8 +12,10 @@
       --muted:      #a89a80;
       --border:     #3a342a; /* Inverted from light border */
       --ghost:      #2a241a;
-      --winner-bg:  #e1ccd0; /* Inverted from dark green */
-      --winner-fg:  #1e3320; /* Inverted from light green */
+      --primary:    #ffcc00; /* Mustard of Authority */
+      --secondary:  #cc99ff; /* Indifferent Lavender */
+      --winner-bg:  var(--primary);
+      --winner-fg:  var(--bg);
       --scale:      1.4;
     }
 
@@ -389,19 +391,28 @@
     render();
   });
 
+  // ── Colors ──
+  const POSITIVE_COLORS = ['#00ffcc', '#99ff99', '#ff99cc'];
+  const NEGATIVE_COLORS = ['#ff5050', '#ff9900', '#ff00ff'];
+
+  function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
   function updatePosition(pos) {
     myPosition = pos;
     if (myChecked) {
       $posNumber.textContent = '✓';
+      $posNumber.style.color = 'var(--primary)';
       $posLabel.textContent = 'you checked your box.';
-      $status.textContent = 'You have checked your box. The contest notes your participation.';
+      showStatus('You have checked your box. The contest notes your participation.', 'positive');
       document.title = '✓ The Waiting Game';
     } else if (pos === 0) {
       $posNumber.textContent = '#1';
+      $posNumber.style.color = 'var(--secondary)';
       $posLabel.textContent = 'first in line';
       document.title = '#1 — The Waiting Game';
     } else {
       $posNumber.textContent = '#' + (pos + 1).toLocaleString();
+      $posNumber.style.color = '';
       $posLabel.textContent = 'in line';
       document.title = '#' + (pos + 1).toLocaleString() + ' — The Waiting Game';
     }
@@ -416,10 +427,20 @@
       departuresTotal.toLocaleString() + ' have been<br>returned to the world today.';
   }
 
-  function showAnnouncement(text) {
+  function showAnnouncement(text, tone = 'positive') {
+    const color = getRandom(tone === 'positive' ? POSITIVE_COLORS : NEGATIVE_COLORS);
     $announcement.textContent = text;
+    $announcement.style.backgroundColor = color;
+    $announcement.style.color = '#16161d';
     $announcement.classList.add('visible');
     setTimeout(() => $announcement.classList.remove('visible'), 12000);
+  }
+
+  function showStatus(text, tone = 'neutral') {
+    $status.textContent = text;
+    if (tone === 'positive') $status.style.color = getRandom(POSITIVE_COLORS);
+    else if (tone === 'negative') $status.style.color = getRandom(NEGATIVE_COLORS);
+    else $status.style.color = '';
   }
 
   function formatDuration(ms) {
@@ -454,10 +475,12 @@
         
         updatePosition(msg.position);
         startPingLoop();
-        $status.textContent =
+        showStatus(
           msg.position === 0
             ? 'You are first in line. It is your turn when you are ready.'
-            : 'You are in line. The contest is aware of your presence.';
+            : 'You are in line. The contest is aware of your presence.',
+          msg.position === 0 ? 'positive' : 'neutral'
+        );
         break;
       }
 
@@ -521,14 +544,14 @@
         const s = slots.get(mySeq);
         if (s) s.state = 'checked';
         updatePosition(msg.position);
-        $status.textContent = 'You have checked your box. The contest notes your participation.';
+        showStatus('You have checked your box. The contest notes your participation.', 'positive');
         render();
         break;
       }
 
       case 'check_rejected': {
         if (msg.reason === 'not_eligible') {
-          $status.textContent = 'It is not yet your turn. The box remains unavailable.';
+          showStatus('It is not yet your turn. The box remains unavailable.', 'negative');
         }
         // Re-render to reset the checkbox visual
         const s = slots.get(mySeq);
@@ -545,7 +568,7 @@
           `They have been recorded. The line continues.`
         );
         if (msg.seq !== mySeq) {
-          $status.textContent = 'Someone ahead of you has finished. The line adjusts.';
+          showStatus('Someone ahead of you has finished. The line adjusts.', 'neutral');
         }
         break;
       }
@@ -560,11 +583,11 @@
 
   ws.addEventListener('close', () => {
     if (pingInterval) clearInterval(pingInterval);
-    $status.textContent = 'The connection has been lost. Reload to rejoin at the back of the line.';
+    showStatus('The connection has been lost. Reload to rejoin at the back of the line.', 'negative');
   });
 
   ws.addEventListener('error', () => {
-    $status.textContent = 'The connection encountered a difficulty.';
+    showStatus('The connection encountered a difficulty.', 'negative');
   });
 
 })();
