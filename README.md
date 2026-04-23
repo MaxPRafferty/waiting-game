@@ -11,10 +11,12 @@ You have arrived at a webpage containing an indeterminate number of checkboxes a
 1. **Join the Line:** You are automatically assigned a position at the back.
 2. **Observe:** You can scroll to see others waiting.
 3. **Wait:** You can only check your box when all boxes ahead of you are checked.
-4. **Socialize:** Chat with your "checkbox neighborhood" via serverless P2P WebRTC.
-5. **Enshrine:** Create an account to name your checkbox and earn badges.
-6. **Spectacle:** Departed checkboxes visually "ghost" and fade away.
-7. **Persistence:** Winners are recorded on a global leaderboard.
+4. **Progression:** When the person ahead of you checks their box, the "torch" is passed to you.
+5. **The Clock:** Once you reach the front (#1), you have 30 minutes to check your box or be evicted.
+6. **Socialize:** Chat with your "checkbox neighborhood" via serverless P2P WebRTC.
+7. **Enshrine:** Create an account to name your checkbox and earn badges across seasons.
+8. **Spectacle:** Departed checkboxes visually "ghost" and fade away.
+9. **Persistence:** Winners are recorded on a global leaderboard.
 
 ## Tech Stack
 - **Backend:** Node.js, Express, WebSockets (`ws`).

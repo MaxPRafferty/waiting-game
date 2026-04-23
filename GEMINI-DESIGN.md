@@ -47,6 +47,7 @@ Implemented via **Trystero** (WebRTC over BitTorrent trackers).
 ### 2. The Waiting Line (Progression)
 - **Starting vs. Current Position:** The system tracks both the user's initial join position and their active place in the un-checked line.
 - **The Torch:** When a user checks their box, they remain in the viewport as "checked," but the active waiting line moves forward, granting eligibility to the next person in line.
+- **The Turn Timer:** When a user reaches the front (#1), a 30-minute countdown begins. Failure to check the box within this window results in immediate eviction ("PUNISHMENT").
 
 ## Inferred Database Schema (Supabase/Storage Tool)
 
@@ -88,6 +89,8 @@ Implemented via **Trystero** (WebRTC over BitTorrent trackers).
 - [x] User, Badge, and Follow Workers.
 - [x] REST endpoints for all account actions.
 - [x] P2P Neighborhood Chat (exclusively frontend).
+- [x] Turn Timer (Frontend logic & UI).
+- [x] Database Schema for Seasons and Superlatives.
 
 ---
 
