@@ -6,8 +6,8 @@ import { imageGenerator } from '../../tools/imageGenerator/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
-  private MOCK_START_SIZE = 500_000;
-  private mockTotal = 500_000;
+  private MOCK_START_SIZE = process.env.DEPENDENCY_MODE === 'LIVE' ? 0 : 500_000;
+  private mockTotal = this.MOCK_START_SIZE;
   private STALE_THRESHOLD_MS = 12_000;
 
   async join(token: string) {
@@ -133,6 +133,11 @@ export class QueueWorker {
   async getRandomActivity(): Promise<ServerMessage[]> {
     const messages: ServerMessage[] = [];
     
+    // No random mock activity in LIVE mode
+    if (process.env.DEPENDENCY_MODE === 'LIVE') {
+      return messages;
+    }
+
     // Mock Winner
     if (Math.random() < 0.2) {
       const mockPos = Math.floor(Math.random() * 50);
