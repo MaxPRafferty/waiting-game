@@ -7,13 +7,14 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☐</text></svg>">
   <style>
     :root {
-      --bg:         #f4efe6;
-      --text:       #2c2416;
-      --muted:      #8a7a60;
-      --border:     #d4c9b0;
-      --ghost:      #c8bfa8;
-      --winner-bg:  #1e3320;
-      --winner-fg:  #8fc99a;
+      --bg:         #16161d; /* Eigengrau */
+      --text:       #e0d8c8; /* Inverted from original dark */
+      --muted:      #a89a80;
+      --border:     #3a342a; /* Inverted from light border */
+      --ghost:      #2a241a;
+      --winner-bg:  #e1ccd0; /* Inverted from dark green */
+      --winner-fg:  #1e3320; /* Inverted from light green */
+      --scale:      1.4;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,30 +32,30 @@
 
     /* ── Header ── */
     .header {
-      padding: 20px 32px 14px;
+      padding: calc(20px * var(--scale)) calc(32px * var(--scale)) calc(14px * var(--scale));
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: baseline;
-      gap: 16px;
+      gap: calc(16px * var(--scale));
       flex-shrink: 0;
     }
 
     .position-number {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 44px;
+      font-size: calc(44px * var(--scale));
       font-weight: bold;
       letter-spacing: -1px;
       line-height: 1;
     }
 
     .position-label {
-      font-size: 15px;
+      font-size: calc(15px * var(--scale));
       color: var(--muted);
     }
 
     .departure-counter {
       margin-left: auto;
-      font-size: 12px;
+      font-size: calc(12px * var(--scale));
       color: var(--muted);
       font-style: italic;
       text-align: right;
@@ -65,9 +66,9 @@
     .announcement {
       background: var(--winner-bg);
       color: var(--winner-fg);
-      padding: 9px 32px;
-      font-size: 13px;
-      border-bottom: 1px solid #2d4a33;
+      padding: calc(9px * var(--scale)) calc(32px * var(--scale));
+      font-size: calc(13px * var(--scale));
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
       display: none;
     }
@@ -75,13 +76,13 @@
 
     /* ── Status ── */
     .status {
-      padding: 7px 32px;
-      font-size: 13px;
+      padding: calc(7px * var(--scale)) calc(32px * var(--scale));
+      font-size: calc(13px * var(--scale));
       color: var(--muted);
       border-bottom: 1px solid var(--border);
       font-style: italic;
       flex-shrink: 0;
-      min-height: 30px;
+      min-height: calc(30px * var(--scale));
     }
 
     /* ── Main viewport ── */
@@ -90,7 +91,7 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding: 0 32px;
+      padding: 0 calc(32px * var(--scale));
       overflow: hidden;
     }
 
@@ -100,10 +101,10 @@
 
     /* Position labels */
     .strip-labels {
-      height: 18px;
+      height: calc(18px * var(--scale));
       position: relative;
-      margin-bottom: 4px;
-      font-size: 10px;
+      margin-bottom: calc(4px * var(--scale));
+      font-size: calc(10px * var(--scale));
       color: var(--muted);
       font-family: 'Courier New', Courier, monospace;
     }
@@ -119,14 +120,15 @@
       align-items: center;
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
-      padding: 10px 0;
-      min-height: 44px;
+      padding: calc(10px * var(--scale)) 0;
+      min-height: calc(44px * var(--scale));
       gap: 0;
+      position: relative;
     }
 
     .slot {
-      width: 24px;
-      height: 24px;
+      width: 34px; /* Increased from 24px * 1.4 = 33.6 */
+      height: 34px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -136,11 +138,12 @@
     }
 
     .slot input[type="checkbox"] {
-      width: 14px;
-      height: 14px;
+      width: calc(14px * var(--scale));
+      height: calc(14px * var(--scale));
       cursor: default;
       accent-color: var(--text);
       pointer-events: none;
+      filter: invert(1); /* Ensure the checkbox itself is visible on dark bg */
     }
 
     /* User's own slot */
@@ -163,12 +166,12 @@
     /* Pointer below strip */
     .strip-pointer {
       position: relative;
-      height: 20px;
-      margin-top: 4px;
+      height: calc(20px * var(--scale));
+      margin-top: calc(4px * var(--scale));
     }
     .pointer-label {
       position: absolute;
-      font-size: 11px;
+      font-size: calc(11px * var(--scale));
       color: var(--muted);
       transform: translateX(-50%);
       white-space: nowrap;
@@ -177,9 +180,9 @@
 
     /* ── Footer ── */
     .footer {
-      padding: 10px 32px;
+      padding: calc(10px * var(--scale)) calc(32px * var(--scale));
       border-top: 1px solid var(--border);
-      font-size: 11px;
+      font-size: calc(11px * var(--scale));
       color: var(--border);
       flex-shrink: 0;
     }
@@ -192,7 +195,7 @@
       justify-content: center;
       color: var(--muted);
       font-style: italic;
-      font-size: 14px;
+      font-size: calc(14px * var(--scale));
     }
   </style>
 </head>
