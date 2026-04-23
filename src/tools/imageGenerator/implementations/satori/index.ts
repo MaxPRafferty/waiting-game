@@ -1,13 +1,27 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import type { IImageGenerator } from '../../interface.js';
 
 export class SatoriImageGenerator implements IImageGenerator {
-  private fontPath = '/System/Library/Fonts/Supplemental/Arial.ttf';
+  private fontPaths = [
+    '/System/Library/Fonts/Supplemental/Arial.ttf', // macOS
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', // Linux (Debian/Ubuntu)
+    '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf', // Linux (Alpine)
+  ];
+
+  private async getFontData(): Promise<Buffer> {
+    for (const path of this.fontPaths) {
+      if (existsSync(path)) {
+        return await fs.readFile(path);
+      }
+    }
+    throw new Error('No valid font file found for image generation');
+  }
 
   async generate(position: number): Promise<Buffer> {
-    const fontData = await fs.readFile(this.fontPath);
+    const fontData = await this.getFontData();
 
     const svg = await satori(
       {
