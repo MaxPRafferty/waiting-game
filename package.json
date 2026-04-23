@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:all": "concurrently -n \"REDIS,SERVER\" -c \"magenta,yellow\" \"npm run redis:start\" \"npm run dev\"",
+    "redis:start": "redis-server",
+    "redis:stop": "redis-cli shutdown",
     "build": "tsc",
     "build:dry": "tsc --noEmit",
     "start": "node dist/index.js",
@@ -22,6 +25,7 @@
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
+    "concurrently": "^9.2.1",
     "eslint": "^10.2.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
