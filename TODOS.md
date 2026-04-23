@@ -16,6 +16,7 @@
 - Hover banners - you can put ads and shit on your own box that people can then hover over and see... for money
 - When scrolling to a specific box, it should have a very satisfying "go fast" scroll animation
 - "You have won" screen. Play again? All plays should be recorded, you can win multiple times in the leaderboard
+- When your box becomes available to check, a timer starts. You have 30 minutes to check it, or you are PUNISHED
 
 ## Proposal Brainstorm
 

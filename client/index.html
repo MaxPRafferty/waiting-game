@@ -222,7 +222,10 @@
 
 <div class="header">
   <div class="position-number" id="pos-number">—</div>
-  <div class="position-label" id="pos-label">connecting...</div>
+  <div class="position-label" id="pos-label">
+    <div id="current-status">connecting...</div>
+    <div id="started-status" style="font-size: 0.8em; margin-top: 4px; opacity: 0.8; display: none;"></div>
+  </div>
   <div class="departure-counter" id="departure-counter"></div>
 </div>
 
@@ -264,6 +267,7 @@
   let mySeq = null;
   let myPosition = null; // Absolute
   let myWaitingPosition = null; // Current place in waiting line
+  let myStartingPosition = null; // Original waiting position
   let myChecked = false;
   let departuresTotal = 0;
   let totalSlots = 0;
@@ -479,26 +483,41 @@
   const NEGATIVE_COLORS = ['#ff5050', '#ff9900', '#ff00ff'];
   function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+  function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
   function updatePosition(absPos, waitPos) {
     myPosition = absPos;
     myWaitingPosition = waitPos;
 
+    if (myStartingPosition === null && waitPos !== null) {
+      myStartingPosition = waitPos;
+      const $started = document.getElementById('started-status');
+      $started.textContent = `Started ${getOrdinal(waitPos + 1)} in line`;
+      $started.style.display = 'block';
+    }
+
+    const $current = document.getElementById('current-status');
+
     if (myChecked) {
       $posNumber.textContent = '✓';
       $posNumber.style.color = 'var(--primary)';
-      $posLabel.textContent = 'you checked your box.';
-      showStatus('You have checked your box. The contest notes your participation.', 'positive');
+      $current.textContent = `You won!`;
+      showStatus('The contest notes your victory.', 'positive');
       document.title = '✓ The Waiting Game';
     } else if (waitPos === 0) {
-      $posNumber.textContent = '#1';
+      $posNumber.textContent = '1st';
       $posNumber.style.color = 'var(--secondary)';
-      $posLabel.textContent = 'first in line';
-      document.title = '#1 — The Waiting Game';
+      $current.textContent = 'First in line';
+      document.title = '1st — The Waiting Game';
     } else {
-      $posNumber.textContent = '#' + (waitPos + 1).toLocaleString();
+      $posNumber.textContent = getOrdinal(waitPos + 1);
       $posNumber.style.color = '';
-      $posLabel.textContent = 'in line';
-      document.title = '#' + (waitPos + 1).toLocaleString() + ' — The Waiting Game';
+      $current.textContent = 'in line';
+      document.title = getOrdinal(waitPos + 1) + ' — The Waiting Game';
     }
   }
 
