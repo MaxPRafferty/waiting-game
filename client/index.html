@@ -366,11 +366,13 @@
 
   function updateScroll(delta) {
     const prevOffset = scrollOffset;
-    scrollOffset = Math.max(0, Math.min(totalSlots - 5, scrollOffset + delta / SLOT_WIDTH));
-    
+    // Map wheel delta to scroll. Positive delta usually means "down" or "right".
+    // We want "down" to move the offset forward (to the right).
+    scrollOffset = Math.max(0, Math.min(totalSlots - 1, scrollOffset + delta / SLOT_WIDTH));
+
     if (scrollOffset !== prevOffset) {
       render();
-      
+
       const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
       const from = Math.max(0, Math.floor(scrollOffset) - 5);
       const to = from + visibleCount;
@@ -506,6 +508,9 @@
       case 'range_update': {
         // New or updated slot
         slots.set(msg.seq, { seq: msg.seq, position: msg.position, state: msg.state });
+        if (msg.position >= totalSlots) {
+          totalSlots = msg.position + 1;
+        }
         if (msg.seq === mySeq && msg.state === 'checked') {
           myChecked = true;
         }

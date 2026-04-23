@@ -12,7 +12,7 @@ const PING_INTERVAL_MS = 5_000;
 const STALE_THRESHOLD_MS = 12_000;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const MOCK_TOTAL_SIZE = 1_000_000;
+const MOCK_TOTAL_SIZE = 500_000;
 
 // --- Rate limiting ---
 const joinRateMap = new Map<string, number[]>();
@@ -50,7 +50,7 @@ function notifyPositionsBehind(seq: number) {
   for (const client of queue.clientsBehind(seq)) {
     send(client.ws, {
       type: 'position_update',
-      position: queue.getPosition(client.token),
+      position: MOCK_TOTAL_SIZE + queue.getPosition(client.token),
     });
   }
 }
@@ -139,27 +139,29 @@ wss.on('connection', (ws, req) => {
       token = msg.token;
       const client = queue.add(token, ws);
 
-      // Tell the new client their place
+      // Tell the new client their place (at the end of the mock line)
+      const mockPosition = MOCK_TOTAL_SIZE + queue.getPosition(token);
       send(ws, {
         type: 'joined',
         seq: client.seq,
-        position: queue.getPosition(token),
+        position: mockPosition,
       });
 
-      // Send initial range around the user
-      const start = Math.max(0, queue.getPosition(token) - 30);
+      // Send initial range around the user's back-of-line position
+      const start = Math.max(0, mockPosition - 30);
       const end = start + 60;
+      const currentTotal = MOCK_TOTAL_SIZE + queue.size();
       send(ws, {
         type: 'range_state',
-        slots: queue.getRange(start, end, MOCK_TOTAL_SIZE),
-        total: MOCK_TOTAL_SIZE,
+        slots: queue.getRange(start, end, MOCK_TOTAL_SIZE, currentTotal),
+        total: currentTotal,
       });
 
       // Tell all existing clients about the new slot
       broadcast({
         type: 'range_update',
         seq: client.seq,
-        position: queue.getPosition(token),
+        position: mockPosition,
         state: 'waiting',
       });
 
@@ -190,13 +192,14 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      send(ws, { type: 'check_ok', position: result.position, duration_ms: result.duration_ms });
+      const mockPos = MOCK_TOTAL_SIZE + result.position;
+      send(ws, { type: 'check_ok', position: mockPos, duration_ms: result.duration_ms });
 
       // Announce globally
-      broadcast({ type: 'winner', seq: result.seq, position: result.position, duration_ms: result.duration_ms });
+      broadcast({ type: 'winner', seq: result.seq, position: mockPos, duration_ms: result.duration_ms });
 
       // Update display for all: this slot is now checked
-      broadcast({ type: 'range_update', seq: result.seq, position: result.position, state: 'checked' });
+      broadcast({ type: 'range_update', seq: result.seq, position: mockPos, state: 'checked' });
 
       // The checked user's slot stays in the queue (visible as checked).
       // No position change for anyone else — checked users don't vacate.
@@ -205,10 +208,11 @@ wss.on('connection', (ws, req) => {
 
     // --- viewport_subscribe ---
     if (msg.type === 'viewport_subscribe') {
+      const currentTotal = MOCK_TOTAL_SIZE + queue.size();
       send(ws, {
         type: 'range_state',
-        slots: queue.getRange(msg.from_position, msg.to_position, MOCK_TOTAL_SIZE),
-        total: MOCK_TOTAL_SIZE,
+        slots: queue.getRange(msg.from_position, msg.to_position, MOCK_TOTAL_SIZE, currentTotal),
+        total: currentTotal,
       });
       return;
     }
@@ -256,12 +260,23 @@ setInterval(() => {
 
   // Random phantom departure
   if (Math.random() < 0.1) {
-    const mockPos = Math.floor(Math.random() * MOCK_TOTAL_SIZE);
+    const mockPos = Math.floor(Math.random() * (MOCK_TOTAL_SIZE + queue.size()));
     departuresTotal++;
     broadcast({ 
       type: 'left', 
       seq: -1000 - mockPos, 
       departures_today: departuresTotal 
+    });
+  }
+
+  // Random phantom arrival (new box at the end)
+  if (Math.random() < 0.3) {
+    const currentTotal = MOCK_TOTAL_SIZE + queue.size();
+    broadcast({
+      type: 'range_update',
+      seq: -2000 - currentTotal, // New phantom seq
+      position: currentTotal,
+      state: 'waiting'
     });
   }
 

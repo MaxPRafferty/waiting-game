@@ -105,14 +105,16 @@ export class QueueStore {
   }
 
   // Get a range of slots, filling gaps with 'phantom' data if needed for the mock
-  getRange(fromPos: number, toPos: number, mockTotal: number): SlotSummary[] {
+  getRange(fromPos: number, toPos: number, offset: number, total: number): SlotSummary[] {
     const summaries: SlotSummary[] = [];
     const allClients = this.all();
 
     for (let i = fromPos; i <= toPos; i++) {
-      if (i < 0 || i >= mockTotal) continue;
+      if (i < 0 || i >= total) continue;
 
-      const realClient = allClients[i];
+      const realIdx = i - offset;
+      const realClient = (realIdx >= 0 && realIdx < allClients.length) ? allClients[realIdx] : null;
+
       if (realClient) {
         summaries.push({
           seq: realClient.seq,
