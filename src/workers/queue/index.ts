@@ -1,6 +1,7 @@
 import { queue } from '../../tools/queue/index.js';
 import { subscription } from '../../tools/subscription/index.js';
 import { statistics } from '../../tools/statistics/index.js';
+import { leaderboard } from '../../tools/leaderboard/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
@@ -68,9 +69,14 @@ export class QueueWorker {
     const result = await queue.check(token);
     if (!result.success) return result;
 
+    const mockPos = this.MOCK_START_SIZE + result.position;
+    
+    // Persist to leaderboard
+    await leaderboard.addWinner(result.seq, mockPos, result.duration_ms);
+
     return {
       ...result,
-      position: this.MOCK_START_SIZE + result.position
+      position: mockPos
     };
   }
 
@@ -115,6 +121,10 @@ export class QueueWorker {
     return await statistics.getDeparturesToday();
   }
 
+  async getLeaderboard(limit = 10) {
+    return await leaderboard.getRecentWinners(limit);
+  }
+
   async getRandomActivity(): Promise<ServerMessage[]> {
     const messages: ServerMessage[] = [];
     
@@ -122,15 +132,20 @@ export class QueueWorker {
     if (Math.random() < 0.2) {
       const mockPos = Math.floor(Math.random() * 50);
       const mockDuration = Math.floor(Math.random() * 3600_000);
+      const seq = -1000 - mockPos;
+      
+      // Also persist mock winners to leaderboard
+      await leaderboard.addWinner(seq, mockPos, mockDuration);
+
       messages.push({ 
         type: 'winner', 
-        seq: -1000 - mockPos, 
+        seq, 
         position: mockPos, 
         duration_ms: mockDuration 
       });
       messages.push({
         type: 'range_update',
-        seq: -1000 - mockPos,
+        seq,
         position: mockPos,
         state: 'checked'
       });

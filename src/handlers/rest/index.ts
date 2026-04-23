@@ -56,3 +56,13 @@ export const viewportHandler = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const leaderboardHandler = async (_req: Request, res: Response) => {
+  try {
+    const winners = await queueWorker.getLeaderboard();
+    return res.json({ winners });
+  } catch (error) {
+    console.error('Leaderboard error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};

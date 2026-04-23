@@ -84,3 +84,31 @@ paths:
                       $ref: 'schemas.yaml#/components/schemas/SlotSummary'
                   total:
                     type: integer
+  /leaderboard:
+    get:
+      summary: Get the recent winners
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  winners:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WinnerEntry'
+components:
+  schemas:
+    WinnerEntry:
+      type: object
+      properties:
+        seq:
+          type: integer
+        position:
+          type: integer
+        duration_ms:
+          type: integer
+        timestamp:
+          type: integer
