@@ -2,18 +2,26 @@ import { queue } from '../../tools/queue/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
-  private MOCK_TOTAL_SIZE = 500_000;
+  private MOCK_START_SIZE = 500_000;
+  private mockTotal = 500_000;
   private STALE_THRESHOLD_MS = 12_000;
 
   async join(token: string) {
     const client = await queue.add(token);
     const pos = await queue.getPosition(token);
-    const mockPosition = this.MOCK_TOTAL_SIZE + pos;
+    
+    // Ensure mockTotal is at least as large as the real queue + offset
+    const size = await queue.size();
+    if (this.mockTotal < this.MOCK_START_SIZE + size) {
+      this.mockTotal = this.MOCK_START_SIZE + size;
+    }
+    
+    const mockPosition = this.MOCK_START_SIZE + pos;
     
     return {
       client,
       mockPosition,
-      total: this.MOCK_TOTAL_SIZE + (await queue.size())
+      total: this.mockTotal
     };
   }
 
@@ -28,15 +36,17 @@ export class QueueWorker {
 
     return {
       ...result,
-      position: this.MOCK_TOTAL_SIZE + result.position
+      position: this.MOCK_START_SIZE + result.position
     };
   }
 
   async getViewport(from: number, to: number) {
     const size = await queue.size();
-    const currentTotal = this.MOCK_TOTAL_SIZE + size;
-    const slots = await queue.getRange(from, to, this.MOCK_TOTAL_SIZE, currentTotal);
-    return { slots, total: currentTotal };
+    const realTotal = this.MOCK_START_SIZE + size;
+    if (this.mockTotal < realTotal) this.mockTotal = realTotal;
+    
+    const slots = await queue.getRange(from, to, this.MOCK_START_SIZE, this.mockTotal);
+    return { slots, total: this.mockTotal };
   }
 
   async touch(token: string) {
@@ -55,7 +65,7 @@ export class QueueWorker {
       const pos = await queue.getPosition(client.token);
       updates.push({
         token: client.token,
-        position: this.MOCK_TOTAL_SIZE + pos
+        position: this.MOCK_START_SIZE + pos
       });
     }
     return updates;
@@ -84,24 +94,22 @@ export class QueueWorker {
 
     // Mock Departure
     if (Math.random() < 0.1) {
-      const size = await queue.size();
-      const mockPos = Math.floor(Math.random() * (this.MOCK_TOTAL_SIZE + size));
+      const mockPos = Math.floor(Math.random() * this.mockTotal);
       messages.push({ 
         type: 'left', 
         seq: -1000 - mockPos, 
-        departures_today: 0 // Will be filled by handler
+        departures_today: 0 
       });
     }
 
-    // Mock Arrival
+    // Mock Arrival - Increment mockTotal
     for (let i = 0; i < 2; i++) {
       if (Math.random() < 0.75) {
-        const size = await queue.size();
-        const currentTotal = this.MOCK_TOTAL_SIZE + size;
+        const position = this.mockTotal++;
         messages.push({
           type: 'range_update',
-          seq: -2000 - currentTotal - i,
-          position: currentTotal,
+          seq: -2000 - position,
+          position: position,
           state: 'waiting'
         });
       }

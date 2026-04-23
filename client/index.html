@@ -440,16 +440,20 @@
       scrollOffset = Math.max(0, Math.min(totalSlots - 1, scrollOffset + delta / SLOT_WIDTH));
     }
 
-    if (scrollOffset !== prevOffset) {
+    if (scrollOffset !== prevOffset || isAbsolute) {
       render();
-      const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
-      const from = Math.max(0, Math.floor(scrollOffset) - 5);
-      const to = from + visibleCount;
+      syncViewport();
+    }
+  }
 
-      if (Math.abs(from - lastSubscribedRange.from) > 5 || Math.abs(to - lastSubscribedRange.to) > 5) {
-        send({ type: 'viewport_subscribe', from_position: from, to_position: to });
-        lastSubscribedRange = { from, to };
-      }
+  function syncViewport(force = false) {
+    const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
+    const from = Math.max(0, Math.floor(scrollOffset) - 5);
+    const to = from + visibleCount;
+
+    if (force || Math.abs(from - lastSubscribedRange.from) > 5 || Math.abs(to - lastSubscribedRange.to) > 5) {
+      send({ type: 'viewport_subscribe', from_position: from, to_position: to });
+      lastSubscribedRange = { from, to };
     }
   }
 
@@ -548,6 +552,7 @@
             : 'You are in line. The contest is aware of your presence.',
           msg.position === 0 ? 'positive' : 'neutral'
         );
+        syncViewport(true);
         break;
 
       case 'range_state':
