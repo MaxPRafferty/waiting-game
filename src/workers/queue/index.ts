@@ -6,9 +6,14 @@ import { imageGenerator } from '../../tools/imageGenerator/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
-  private MOCK_START_SIZE = process.env.DEPENDENCY_MODE === 'LIVE' ? 0 : 500_000;
-  private mockTotal = this.MOCK_START_SIZE;
+  private MOCK_START_SIZE: number;
+  private mockTotal: number;
   private STALE_THRESHOLD_MS = 12_000;
+
+  constructor() {
+    this.MOCK_START_SIZE = process.env.DEPENDENCY_MODE === 'LIVE' ? 0 : 500_000;
+    this.mockTotal = this.MOCK_START_SIZE;
+  }
 
   async join(token: string) {
     const client = await queue.add(token);

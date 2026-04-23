@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env.js';
 import http from 'http';
 import express from 'express';
 import path from 'path';
