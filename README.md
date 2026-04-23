@@ -75,3 +75,15 @@ We do not judge them. The contest does not judge them. We note only that they ar
 ---
 
 *The Waiting Game has been running since it began. It will continue until it stops.*
+
+---
+
+## Running locally
+
+```bash
+nvm use        # Node 22 required
+npm install
+npm run dev    # server starts at http://localhost:3000
+```
+
+Open two browser tabs to `http://localhost:3000`. The two-tab proof of concept is the whole weekend 1 goal: tab 1 checks, tab 2 activates. Close tab 2, it disappears. Technical details are in `DESIGN.md`.
