@@ -8,6 +8,7 @@ import type { ClientMessage, ServerMessage } from './types.js';
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const CLIENT_DIR = path.join(process.cwd(), 'client');
 const PING_INTERVAL_MS = 5_000;
+const STALE_THRESHOLD_MS = 12_000;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MOCK_TOTAL_SIZE = 500_000;
@@ -166,6 +167,7 @@ wss.on('connection', (ws, req) => {
     if (!token) return;
 
     if (msg.type === 'ping') {
+      await queue.touch(token);
       send(ws, { type: 'pong' });
       return;
     }
@@ -213,6 +215,17 @@ wss.on('connection', (ws, req) => {
 
 // --- Heartbeat and Mock Activity ---
 setInterval(async () => {
+  // --- Evict stale connections ---
+  const evicted = await queue.evictStale(STALE_THRESHOLD_MS);
+  for (const client of evicted) {
+    departuresTotal++;
+    tokenToWs.delete(client.token);
+    
+    // Broadcast departure and notify positions behind
+    broadcast({ type: 'left', seq: client.seq, departures_today: departuresTotal });
+    await notifyPositionsBehind(client.seq);
+  }
+
   if (Math.random() < 0.2) {
     const mockPos = Math.floor(Math.random() * 50);
     const mockDuration = Math.floor(Math.random() * 3600_000);

@@ -20,19 +20,45 @@ export class QueueStore {
 
   async add(token: string): Promise<QueueClient> {
     const seq = await this.redis.incr(this.SEQ_KEY);
-    const joined_at = Date.now();
+    const now = Date.now();
     
     // Use a pipeline for atomicity
     await this.redis.pipeline()
       .zadd(this.QUEUE_KEY, seq, token)
       .hset(this.STATE_KEY, token, JSON.stringify({
         seq,
-        joined_at,
+        joined_at: now,
+        last_ping: now,
         checked: false
       }))
       .exec();
 
-    return { seq, token, checked: false, joined_at };
+    return { seq, token, checked: false, joined_at: now };
+  }
+
+  async touch(token: string): Promise<void> {
+    const stateStr = await this.redis.hget(this.STATE_KEY, token);
+    if (!stateStr) return;
+
+    const state = JSON.parse(stateStr);
+    state.last_ping = Date.now();
+    await this.redis.hset(this.STATE_KEY, token, JSON.stringify(state));
+  }
+
+  async evictStale(thresholdMs: number): Promise<QueueClient[]> {
+    const now = Date.now();
+    const allStates = await this.redis.hgetall(this.STATE_KEY);
+    const evicted: QueueClient[] = [];
+
+    for (const [token, stateStr] of Object.entries(allStates)) {
+      const state = JSON.parse(stateStr);
+      if (!state.checked && now - state.last_ping > thresholdMs) {
+        await this.remove(token);
+        evicted.push({ token, ...state });
+      }
+    }
+
+    return evicted;
   }
 
   async remove(token: string): Promise<QueueClient | null> {
