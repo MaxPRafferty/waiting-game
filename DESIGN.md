@@ -11,6 +11,7 @@ Mode: Builder
 A web app with a single, impossibly long horizontal strip of checkboxes — potentially millions of them. Each user owns one checkbox, assigned at the position they join (back of the queue). They can scroll the strip to any position and see live state.
 
 The mechanic:
+
 - Users ahead of you in line check their own boxes, one by one from the front
 - You can only check YOUR box when all boxes ahead of you are checked (or you're first)
 - Leaving the tab removes you immediately; everyone behind you shifts forward
@@ -24,6 +25,7 @@ Direct prior art: One Million Checkboxes (OMCB, June 2024) — shared state, any
 The number is the product. "#47,291 in line" is instantly shareable. Checkboxes are just the visual carrier.
 
 The core mechanic creates compounding tension:
+
 - You're simultaneously watching people ahead succeed and disappear
 - Departures are visible in real time — a checkbox lingers briefly, then closes like water over a stone
 - The longer you remain, the more you have invested in remaining — we decline to elaborate on what this means
@@ -63,6 +65,7 @@ Independent Claude subagent cold read on the architecture:
 ## Approaches Considered
 
 ### Approach A: The Fast One
+
 - **Summary:** Partykit + vanilla TS + Vite. Sequence numbers for queue order, WebSocket broadcast for state changes.
 - **Effort:** M (2-3 weekends)
 - **Risk:** Med — Partykit's abstractions may resist custom queue logic
@@ -71,6 +74,7 @@ Independent Claude subagent cold read on the architecture:
 - **Completeness:** 7/10
 
 ### Approach B: The Right One (CHOSEN)
+
 - **Summary:** Node.js + ws + Redis (sorted set for queue). Sequence numbers on join, computed positions, range-subscriptions for viewport updates. Custom wheel-event virtual scroll.
 - **Effort:** L (4-6 weekends)
 - **Risk:** Low long-term; higher short-term complexity
@@ -79,6 +83,7 @@ Independent Claude subagent cold read on the architecture:
 - **Completeness:** 9/10
 
 ### Approach C: Show It This Week
+
 - **Summary:** Static array of ~10K checkboxes, one WS room, no real queue. Validate the UX feel first.
 - **Effort:** S (1 weekend)
 - **Pros:** Fast feedback; forces the virtual scroll UI before backend work; screenshot moment achievable quickly
@@ -126,22 +131,22 @@ Since 10M checkboxes × 20px = 200M px (beyond browser limits), the scroll conta
 
 Minimum message schema (client ↔ server):
 
-| Message | Direction | Payload |
-|---------|-----------|---------|
-| `join` | C→S | `{ session_token: string }` |
-| `joined` | S→C | `{ sequence_number: number, position: number }` |
-| `position_update` | S→C | `{ position: number }` (pushed on range change, not polled) |
-| `viewport_subscribe` | C→S | `{ from_position: number, to_position: number }` — server translates to sequence range |
-| `range_state` | S→C | `{ slots: Array<{ seq: number, position: number, state: 'checked' \| 'waiting' \| 'empty' }> }` |
-| `range_update` | S→C | `{ seq: number, position: number, state: 'checked' \| 'waiting' \| 'empty' }` |
-| `join_rejected` | S→C | `{ reason: 'rate_limited' }` |
-| `ping` | C→S | `{}` (every 5s) |
-| `pong` | S→C | `{}` |
-| `check` | C→S | `{ session_token: string }` |
-| `check_ok` | S→C | `{ position: number }` |
-| `check_rejected` | S→C | `{ reason: 'not_eligible' \| 'already_checked' }` |
-| `winner` | S→C (broadcast) | `{ username: string \| null, position: number, duration_ms: number }` |
-| `left` | S→C (range broadcast) | `{ seq: number }` |
+| Message              | Direction             | Payload                                                                                         |
+| -------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
+| `join`               | C→S                   | `{ session_token: string }`                                                                     |
+| `joined`             | S→C                   | `{ sequence_number: number, position: number }`                                                 |
+| `position_update`    | S→C                   | `{ position: number }` (pushed on range change, not polled)                                     |
+| `viewport_subscribe` | C→S                   | `{ from_position: number, to_position: number }` — server translates to sequence range          |
+| `range_state`        | S→C                   | `{ slots: Array<{ seq: number, position: number, state: 'checked' \| 'waiting' \| 'empty' }> }` |
+| `range_update`       | S→C                   | `{ seq: number, position: number, state: 'checked' \| 'waiting' \| 'empty' }`                   |
+| `join_rejected`      | S→C                   | `{ reason: 'rate_limited' }`                                                                    |
+| `ping`               | C→S                   | `{}` (every 5s)                                                                                 |
+| `pong`               | S→C                   | `{}`                                                                                            |
+| `check`              | C→S                   | `{ session_token: string }`                                                                     |
+| `check_ok`           | S→C                   | `{ position: number }`                                                                          |
+| `check_rejected`     | S→C                   | `{ reason: 'not_eligible' \| 'already_checked' }`                                               |
+| `winner`             | S→C (broadcast)       | `{ username: string \| null, position: number, duration_ms: number }`                           |
+| `left`               | S→C (range broadcast) | `{ seq: number }`                                                                               |
 
 **Eligibility check is atomic:** server validates via Redis transaction (WATCH + MULTI/EXEC or Lua script) that `ZRANK(queue, session_token) === 0` (no entries with lower sequence number) before recording the check event. Race condition between two users claiming the same slot is impossible — only one can be at position 0.
 
@@ -184,6 +189,7 @@ Minimum message schema (client ↔ server):
 ## The Assignment
 
 Build the two-tab demo this weekend. Not the full thing — just the mechanic:
+
 - One Node.js server with `ws` + a simple Map
 - Two browser tabs open locally
 - Tab 1 is position 1, can check immediately

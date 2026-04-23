@@ -2,9 +2,16 @@
 
 ## Later-Phase (post all buildout from DESIGN.md)
 
+- Account Sign In
+- Usernames
+- Copy expansion so phrases dont seem stale. All "static" copy should cycle at minimum on a per-refresh basis. Announcements/messages should have an extremely wide variety.
 - Foolish Microtransactions (e.g. pay $0.01 to move up a spot)
 - Prizes for absurd, invisible tasks
 - Punishments
+- Absurd Sponsors (and then possibly real ones amongst them)
+- Pushing Superlatives: the top 1000 get "broadcast priority", etc. Have these happen frequently so there is a carrot to dangle.
+- Global superlatives: Longest waiting, longest winner, shortest winner, etc
+- Badges
 
 ## Proposal Brainstorm
 
