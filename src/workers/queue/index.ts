@@ -1,4 +1,5 @@
 import { queue } from '../../tools/queue/index.js';
+import { subscription } from '../../tools/subscription/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
@@ -27,7 +28,37 @@ export class QueueWorker {
 
   async leave(token: string) {
     const client = await queue.remove(token);
+    if (client) {
+      await subscription.unsubscribe(token);
+    }
     return client;
+  }
+
+  async subscribe(connectionId: string, fromPos: number, toPos: number) {
+    const { slots, total } = await this.getViewport(fromPos, toPos);
+    
+    // Find min/max sequence in this range
+    let minSeq = Infinity;
+    let maxSeq = -Infinity;
+
+    for (const s of slots) {
+      if (s.seq < minSeq) minSeq = s.seq;
+      if (s.seq > maxSeq) maxSeq = s.seq;
+    }
+
+    if (minSeq !== Infinity && maxSeq !== -Infinity) {
+      await subscription.subscribe(connectionId, minSeq, maxSeq);
+    }
+
+    return { slots, total };
+  }
+
+  async unsubscribe(connectionId: string) {
+    await subscription.unsubscribe(connectionId);
+  }
+
+  async getSubscribers(seq: number) {
+    return await subscription.getSubscribers(seq);
   }
 
   async check(token: string) {

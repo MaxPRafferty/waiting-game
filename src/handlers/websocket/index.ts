@@ -6,6 +6,42 @@ import type { ServerMessage } from '../../types.js';
 const tokenToWs = new Map<string, WebSocket>();
 const departuresTotal = { value: 0 };
 
+/**
+ * Sends a message to all connections subscribed to the bucket containing the given sequence number.
+ */
+async function broadcastToSubscribers(seq: number, msg: ServerMessage) {
+  const subscribers = await queueWorker.getSubscribers(seq);
+  for (const token of subscribers) {
+    const targetWs = tokenToWs.get(token);
+    if (targetWs) targetWs.send(JSON.stringify(msg));
+  }
+}
+
+/**
+ * Sends a message to ALL connected clients.
+ */
+function broadcastToAll(msg: ServerMessage) {
+  for (const targetWs of tokenToWs.values()) {
+    targetWs.send(JSON.stringify(msg));
+  }
+}
+
+/**
+ * Notifies all clients behind a given sequence that their position has updated.
+ */
+async function notifyPositionsBehind(seq: number) {
+  const updates = await queueWorker.getPositionsBehind(seq);
+  for (const update of updates) {
+    const targetWs = tokenToWs.get(update.token);
+    if (targetWs) {
+      targetWs.send(JSON.stringify({
+        type: 'position_update',
+        position: update.position,
+      }));
+    }
+  }
+}
+
 export const initWebSocket = (wss: WebSocketServer) => {
   wss.on('connection', (ws) => {
     const ctx = {
@@ -20,7 +56,7 @@ export const initWebSocket = (wss: WebSocketServer) => {
         const msg = JSON.parse(raw.toString());
         await handleMessage(msg, ctx);
       } catch (error) {
-        console.error('WebSocket message error:', error);
+        console.warn('WebSocket message error:', error);
       }
     });
 
@@ -39,25 +75,8 @@ export const initWebSocket = (wss: WebSocketServer) => {
       tokenToWs.delete(client.token);
       
       const departureMsg: ServerMessage = { type: 'left', seq: client.seq, departures_today: departuresTotal.value };
-      const broadcast = async (m: ServerMessage) => {
-        const clients = await queueWorker.getPositionsBehind(-1);
-        for (const c of clients) {
-          const targetWs = tokenToWs.get(c.token);
-          if (targetWs) targetWs.send(JSON.stringify(m));
-        }
-      };
-      await broadcast(departureMsg);
-
-      const updates = await queueWorker.getPositionsBehind(client.seq);
-      for (const update of updates) {
-        const targetWs = tokenToWs.get(update.token);
-        if (targetWs) {
-          targetWs.send(JSON.stringify({
-            type: 'position_update',
-            position: update.position,
-          }));
-        }
-      }
+      await broadcastToSubscribers(client.seq, departureMsg);
+      await notifyPositionsBehind(client.seq);
     }
 
     const activities = await queueWorker.getRandomActivity();
@@ -66,10 +85,13 @@ export const initWebSocket = (wss: WebSocketServer) => {
         departuresTotal.value++;
         activity.departures_today = departuresTotal.value;
       }
-      const clients = await queueWorker.getPositionsBehind(-1);
-      for (const c of clients) {
-        const targetWs = tokenToWs.get(c.token);
-        if (targetWs) targetWs.send(JSON.stringify(activity));
+      
+      if (activity.type === 'winner') {
+        // Winners are global announcements
+        broadcastToAll(activity);
+      } else if ('seq' in activity) {
+        // Range-specific updates (including phantom check results)
+        await broadcastToSubscribers(activity.seq, activity);
       }
     }
   }, 5000);

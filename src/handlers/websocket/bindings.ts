@@ -12,20 +12,48 @@ export interface WebSocketContext {
   departuresTotal: { value: number };
 }
 
+/**
+ * Sends a message to all connections subscribed to the bucket containing the given sequence number.
+ */
+async function broadcastToSubscribers(seq: number, msg: ServerMessage, tokenToWs: Map<string, WebSocket>) {
+  const subscribers = await queueWorker.getSubscribers(seq);
+  for (const token of subscribers) {
+    const targetWs = tokenToWs.get(token);
+    if (targetWs) targetWs.send(JSON.stringify(msg));
+  }
+}
+
+/**
+ * Sends a message to ALL connected clients.
+ */
+async function broadcastToAll(msg: ServerMessage, tokenToWs: Map<string, WebSocket>) {
+  for (const targetWs of tokenToWs.values()) {
+    targetWs.send(JSON.stringify(msg));
+  }
+}
+
+/**
+ * Notifies all clients behind a given sequence that their position has updated.
+ */
+async function notifyPositionsBehind(seq: number, tokenToWs: Map<string, WebSocket>) {
+  const updates = await queueWorker.getPositionsBehind(seq);
+  for (const update of updates) {
+    const targetWs = tokenToWs.get(update.token);
+    if (targetWs) {
+      targetWs.send(JSON.stringify({
+        type: 'position_update',
+        position: update.position,
+      }));
+    }
+  }
+}
+
 export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) => {
   const { ws, tokenToWs } = ctx;
 
   const send = (m: ServerMessage) => {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(m));
-    }
-  };
-
-  const broadcast = async (m: ServerMessage) => {
-    const clients = await queueWorker.getPositionsBehind(-1);
-    for (const client of clients) {
-      const targetWs = tokenToWs.get(client.token);
-      if (targetWs) targetWs.send(JSON.stringify(m));
     }
   };
 
@@ -42,19 +70,21 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
         position: joinRes.mockPosition,
       });
 
-      const viewport = await queueWorker.getViewport(joinRes.mockPosition - 30, joinRes.mockPosition + 30);
+      // Automatically subscribe to the range around the user's join position
+      const viewport = await queueWorker.subscribe(ctx.token, joinRes.mockPosition - 30, joinRes.mockPosition + 30);
       send({
         type: 'range_state',
         slots: viewport.slots,
         total: viewport.total,
       });
 
-      broadcast({
+      // Notify others watching this range that a new slot has appeared
+      await broadcastToSubscribers(joinRes.client.seq, {
         type: 'range_update',
         seq: joinRes.client.seq,
         position: joinRes.mockPosition,
         state: 'waiting',
-      });
+      }, tokenToWs);
       break;
     }
 
@@ -72,14 +102,28 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
         return;
       }
       send({ type: 'check_ok', position: checkRes.position, duration_ms: checkRes.duration_ms });
-      broadcast({ type: 'winner', seq: checkRes.seq, position: checkRes.position, duration_ms: checkRes.duration_ms });
-      broadcast({ type: 'range_update', seq: checkRes.seq, position: checkRes.position, state: 'checked' });
+      
+      // Winners are global announcements
+      await broadcastToAll({ 
+        type: 'winner', 
+        seq: checkRes.seq, 
+        position: checkRes.position, 
+        duration_ms: checkRes.duration_ms 
+      }, tokenToWs);
+
+      // Notify range subscribers of the state change
+      await broadcastToSubscribers(checkRes.seq, { 
+        type: 'range_update', 
+        seq: checkRes.seq, 
+        position: checkRes.position, 
+        state: 'checked' 
+      }, tokenToWs);
       break;
     }
 
     case 'viewport_subscribe': {
       if (!ctx.token) return;
-      const viewRes = await queueWorker.getViewport(msg.from_position, msg.to_position);
+      const viewRes = await queueWorker.subscribe(ctx.token, msg.from_position, msg.to_position);
       send({
         type: 'range_state',
         slots: viewRes.slots,
@@ -97,27 +141,13 @@ export const handleDeparture = async (token: string, tokenToWs: Map<string, WebS
   departuresTotal.value++;
   tokenToWs.delete(token);
 
-  const broadcast = async (m: ServerMessage) => {
-    const clients = await queueWorker.getPositionsBehind(-1);
-    for (const c of clients) {
-      const targetWs = tokenToWs.get(c.token);
-      if (targetWs) targetWs.send(JSON.stringify(m));
-    }
-  };
+  // Notify range subscribers that this slot has departed
+  await broadcastToSubscribers(client.seq, { 
+    type: 'left', 
+    seq: client.seq, 
+    departures_today: departuresTotal.value 
+  }, tokenToWs);
 
-  const notifyPositionsBehind = async (seq: number) => {
-    const updates = await queueWorker.getPositionsBehind(seq);
-    for (const update of updates) {
-      const targetWs = tokenToWs.get(update.token);
-      if (targetWs) {
-        targetWs.send(JSON.stringify({
-          type: 'position_update',
-          position: update.position,
-        }));
-      }
-    }
-  };
-
-  await broadcast({ type: 'left', seq: client.seq, departures_today: departuresTotal.value });
-  await notifyPositionsBehind(client.seq);
+  // Everyone behind shifts forward
+  await notifyPositionsBehind(client.seq, tokenToWs);
 };
