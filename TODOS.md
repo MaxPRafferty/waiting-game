@@ -1,3 +1,13 @@
+# TODOs
+
+## Later-Phase (post all buildout from DESIGN.md)
+
+- Foolish Microtransactions (e.g. pay $0.01 to move up a spot)
+- Prizes for absurd, invisible tasks
+- Punishments
+
+## Proposal Brainstorm
+
 Idea: You can click the boxes of people ahead of you, but it moves you back two spaces in line. Perhaps this is cumulative, so the more you do this, the larget the penalty
 Idea: Secret values!?
 Idea: This should really be visually overwhelming, with like - toast notifications of things happening, big explosions when somebody wins or loses. It should flash, the background should go craxy
