@@ -8,7 +8,6 @@ import type { ClientMessage, ServerMessage } from './types.js';
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const CLIENT_DIR = path.join(process.cwd(), 'client');
 const PING_INTERVAL_MS = 5_000;
-const STALE_THRESHOLD_MS = 12_000;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MOCK_TOTAL_SIZE = 500_000;
@@ -30,6 +29,7 @@ function isRateLimited(ip: string): boolean {
 
 // --- State ---
 const queue = new QueueStore();
+const tokenToWs = new Map<string, WebSocket>();
 let departuresTotal = 0;
 
 // --- Helpers ---
@@ -39,37 +39,39 @@ function send(ws: WebSocket, msg: ServerMessage) {
   }
 }
 
-function broadcast(msg: ServerMessage) {
-  for (const client of queue.all()) {
-    send(client.ws, msg);
+async function broadcast(msg: ServerMessage) {
+  const clients = await queue.getAllRealClients();
+  for (const client of clients) {
+    const ws = tokenToWs.get(client.token);
+    if (ws) send(ws, msg);
   }
 }
 
-function notifyPositionsBehind(seq: number) {
-  for (const client of queue.clientsBehind(seq)) {
-    send(client.ws, {
-      type: 'position_update',
-      position: MOCK_TOTAL_SIZE + queue.getPosition(client.token),
-    });
+async function notifyPositionsBehind(_seq: number) {
+  const clients = await queue.getAllRealClients();
+  for (const client of clients) {
+    const pos = await queue.getPosition(client.token);
+    const mockPos = MOCK_TOTAL_SIZE + pos;
+    const ws = tokenToWs.get(client.token);
+    if (ws) {
+      send(ws, {
+        type: 'position_update',
+        position: mockPos,
+      });
+    }
   }
 }
 
-function handleDeparture(token: string) {
-  const client = queue.remove(token);
+async function handleDeparture(token: string) {
+  const client = await queue.remove(token);
   if (!client) return;
 
   departuresTotal++;
+  tokenToWs.delete(token);
 
-  // Close the socket if it's still open
-  try {
-    if (client.ws.readyState === WebSocket.OPEN) client.ws.terminate();
-  } catch (_err) {
-    console.warn(`[handleDeparture] Error terminating socket for seq ${client.seq}:`, _err);
-    // Already closed or disconnected
-  }
-
+  // Note: we don't terminate the socket here as this is usually called FROM the socket close handler
   broadcast({ type: 'left', seq: client.seq, departures_today: departuresTotal });
-  notifyPositionsBehind(client.seq);
+  await notifyPositionsBehind(client.seq);
 }
 
 // --- HTTP server (serves static client files) ---
@@ -82,11 +84,9 @@ const mime: Record<string, string> = {
 
 const httpServer = http.createServer((req, res) => {
   const rawUrl = req.url === '/' ? '/index.html' : (req.url ?? '/index.html');
-  // Strip query string
   const urlPath = rawUrl.split('?')[0];
   const filePath = path.join(CLIENT_DIR, urlPath);
 
-  // Prevent path traversal
   if (!filePath.startsWith(CLIENT_DIR)) {
     res.writeHead(403);
     res.end('Forbidden');
@@ -115,7 +115,7 @@ wss.on('connection', (ws, req) => {
 
   let token: string | null = null;
 
-  ws.on('message', (raw) => {
+  ws.on('message', async (raw) => {
     let msg: ClientMessage;
     try {
       msg = JSON.parse(raw.toString());
@@ -123,43 +123,36 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    // --- join ---
     if (msg.type === 'join') {
-      if (token) return; // already joined on this connection
-
+      if (token) return;
       if (isRateLimited(ip)) {
         send(ws, { type: 'join_rejected', reason: 'rate_limited' });
         ws.close();
         return;
       }
 
-      if (queue.has(msg.token)) {
-        // Reconnect attempt — not supported. New slot.
-        // Fall through and assign a new position (token will differ anyway).
-      }
-
       token = msg.token;
-      const client = queue.add(token, ws);
+      tokenToWs.set(token, ws);
+      const client = await queue.add(token);
 
-      // Tell the new client their place (at the end of the mock line)
-      const mockPosition = MOCK_TOTAL_SIZE + queue.getPosition(token);
+      const pos = await queue.getPosition(token);
+      const mockPosition = MOCK_TOTAL_SIZE + pos;
       send(ws, {
         type: 'joined',
         seq: client.seq,
         position: mockPosition,
       });
 
-      // Send initial range around the user's back-of-line position
       const start = Math.max(0, mockPosition - 30);
       const end = start + 60;
-      const currentTotal = MOCK_TOTAL_SIZE + queue.size();
+      const size = await queue.size();
+      const currentTotal = MOCK_TOTAL_SIZE + size;
       send(ws, {
         type: 'range_state',
-        slots: queue.getRange(start, end, MOCK_TOTAL_SIZE, currentTotal),
+        slots: await queue.getRange(start, end, MOCK_TOTAL_SIZE, currentTotal),
         total: currentTotal,
       });
 
-      // Tell all existing clients about the new slot
       broadcast({
         type: 'range_update',
         seq: client.seq,
@@ -172,21 +165,17 @@ wss.on('connection', (ws, req) => {
 
     if (!token) return;
 
-    // --- ping ---
     if (msg.type === 'ping') {
-      queue.touch(token);
       send(ws, { type: 'pong' });
       return;
     }
 
-    // --- check ---
     if (msg.type === 'check') {
       if (msg.token !== token) return;
-
-      const result = queue.check(token);
+      const result = await queue.check(token);
 
       if (!result.success) {
-        const c = queue.get(token);
+        const c = await queue.get(token);
         send(ws, {
           type: 'check_rejected',
           reason: c?.checked ? 'already_checked' : 'not_eligible',
@@ -196,24 +185,17 @@ wss.on('connection', (ws, req) => {
 
       const mockPos = MOCK_TOTAL_SIZE + result.position;
       send(ws, { type: 'check_ok', position: mockPos, duration_ms: result.duration_ms });
-
-      // Announce globally
       broadcast({ type: 'winner', seq: result.seq, position: mockPos, duration_ms: result.duration_ms });
-
-      // Update display for all: this slot is now checked
       broadcast({ type: 'range_update', seq: result.seq, position: mockPos, state: 'checked' });
-
-      // The checked user's slot stays in the queue (visible as checked).
-      // No position change for anyone else — checked users don't vacate.
       return;
     }
 
-    // --- viewport_subscribe ---
     if (msg.type === 'viewport_subscribe') {
-      const currentTotal = MOCK_TOTAL_SIZE + queue.size();
+      const size = await queue.size();
+      const currentTotal = MOCK_TOTAL_SIZE + size;
       send(ws, {
         type: 'range_state',
-        slots: queue.getRange(msg.from_position, msg.to_position, MOCK_TOTAL_SIZE, currentTotal),
+        slots: await queue.getRange(msg.from_position, msg.to_position, MOCK_TOTAL_SIZE, currentTotal),
         total: currentTotal,
       });
       return;
@@ -230,20 +212,11 @@ wss.on('connection', (ws, req) => {
 });
 
 // --- Heartbeat and Mock Activity ---
-setInterval(() => {
-  const evicted = queue.evictStale(STALE_THRESHOLD_MS);
-  for (const client of evicted) {
-    departuresTotal++;
-    broadcast({ type: 'left', seq: client.seq, departures_today: departuresTotal });
-    notifyPositionsBehind(client.seq);
-  }
-
-  // --- Mock Activity: Occasionally simulate a phantom checking or leaving ---
+setInterval(async () => {
   if (Math.random() < 0.2) {
-    const mockPos = Math.floor(Math.random() * 50); // Simulate activity near the front
-    const mockDuration = Math.floor(Math.random() * 3600_000); // Up to 1h
+    const mockPos = Math.floor(Math.random() * 50);
+    const mockDuration = Math.floor(Math.random() * 3600_000);
     
-    // Simulate winner announcement
     broadcast({ 
       type: 'winner', 
       seq: -1000 - mockPos, 
@@ -251,7 +224,6 @@ setInterval(() => {
       duration_ms: mockDuration 
     });
 
-    // Simulate range update (checked)
     broadcast({
       type: 'range_update',
       seq: -1000 - mockPos,
@@ -260,9 +232,9 @@ setInterval(() => {
     });
   }
 
-  // Random phantom departure
   if (Math.random() < 0.1) {
-    const mockPos = Math.floor(Math.random() * (MOCK_TOTAL_SIZE + queue.size()));
+    const size = await queue.size();
+    const mockPos = Math.floor(Math.random() * (MOCK_TOTAL_SIZE + size));
     departuresTotal++;
     broadcast({ 
       type: 'left', 
@@ -271,22 +243,20 @@ setInterval(() => {
     });
   }
 
-  // Random phantom arrival (new box at the end) - Increased frequency!
   for (let i = 0; i < 2; i++) {
     if (Math.random() < 0.75) {
-      const currentTotal = MOCK_TOTAL_SIZE + queue.size();
+      const size = await queue.size();
+      const currentTotal = MOCK_TOTAL_SIZE + size;
       broadcast({
         type: 'range_update',
-        seq: -2000 - currentTotal - i, // Unique phantom seq
+        seq: -2000 - currentTotal - i,
         position: currentTotal,
         state: 'waiting'
       });
     }
   }
-
 }, PING_INTERVAL_MS);
 
 httpServer.listen(PORT, () => {
-  console.log(`The waiting game is running at http://localhost:${PORT}`);
-  console.log(`Contestants: ${queue.size()}`);
+  console.log(`The waiting game (Redis Edition) is running at http://localhost:${PORT}`);
 });

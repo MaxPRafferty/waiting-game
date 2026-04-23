@@ -12,10 +12,12 @@
     "lint:fix": "eslint src/ --fix"
   },
   "dependencies": {
+    "ioredis": "^5.10.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/ioredis": "^4.28.10",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
