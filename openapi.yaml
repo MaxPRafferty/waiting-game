@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: The Waiting Game API
+  version: 0.1.0
+  description: API for the sequential checkbox waiting game.
+paths:
+  /join:
+    post:
+      summary: Join the line
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Successfully joined
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  seq:
+                    type: integer
+                  position:
+                    type: integer
+        '429':
+          description: Rate limited
+  /check:
+    post:
+      summary: Check your box
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Successfully checked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  position:
+                    type: integer
+                  duration_ms:
+                    type: integer
+        '403':
+          description: Not eligible or already checked
+  /viewport:
+    get:
+      summary: Get a range of checkboxes
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SlotSummary'
+                  total:
+                    type: integer
+components:
+  schemas:
+    SlotSummary:
+      type: object
+      properties:
+        seq:
+          type: integer
+        position:
+          type: integer
+        state:
+          type: string
+          enum: [waiting, checked]

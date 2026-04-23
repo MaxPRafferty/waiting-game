@@ -15,6 +15,9 @@
     "lint:fix": "eslint src/ --fix"
   },
   "dependencies": {
+    "@types/express": "^5.0.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "ioredis": "^5.10.1",
     "ws": "^8.18.0"
   },

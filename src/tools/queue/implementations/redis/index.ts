@@ -1,14 +1,8 @@
 import Redis from 'ioredis';
-import type { SlotSummary } from './types.js';
+import type { IQueue, QueueClient } from '../../interface.js';
+import type { SlotSummary } from '../../../../types.js';
 
-export interface QueueClient {
-  seq: number;
-  token: string;
-  checked: boolean;
-  joined_at: number;
-}
-
-export class QueueStore {
+export class RedisQueue implements IQueue {
   private redis: Redis;
   private readonly QUEUE_KEY = 'waiting_game:queue';
   private readonly STATE_KEY = 'waiting_game:states';
@@ -22,7 +16,6 @@ export class QueueStore {
     const seq = await this.redis.incr(this.SEQ_KEY);
     const now = Date.now();
     
-    // Use a pipeline for atomicity
     await this.redis.pipeline()
       .zadd(this.QUEUE_KEY, seq, token)
       .hset(this.STATE_KEY, token, JSON.stringify({
@@ -33,32 +26,7 @@ export class QueueStore {
       }))
       .exec();
 
-    return { seq, token, checked: false, joined_at: now };
-  }
-
-  async touch(token: string): Promise<void> {
-    const stateStr = await this.redis.hget(this.STATE_KEY, token);
-    if (!stateStr) return;
-
-    const state = JSON.parse(stateStr);
-    state.last_ping = Date.now();
-    await this.redis.hset(this.STATE_KEY, token, JSON.stringify(state));
-  }
-
-  async evictStale(thresholdMs: number): Promise<QueueClient[]> {
-    const now = Date.now();
-    const allStates = await this.redis.hgetall(this.STATE_KEY);
-    const evicted: QueueClient[] = [];
-
-    for (const [token, stateStr] of Object.entries(allStates)) {
-      const state = JSON.parse(stateStr);
-      if (!state.checked && now - state.last_ping > thresholdMs) {
-        await this.remove(token);
-        evicted.push({ token, ...state });
-      }
-    }
-
-    return evicted;
+    return { seq, token, checked: false, joined_at: now, last_ping: now };
   }
 
   async remove(token: string): Promise<QueueClient | null> {
@@ -90,7 +58,6 @@ export class QueueStore {
     const client = await this.get(token);
     if (!client || client.checked) return false;
 
-    // Rank 0 is eligible
     const rank = await this.redis.zrank(this.QUEUE_KEY, token);
     return rank === 0;
   }
@@ -112,6 +79,7 @@ export class QueueStore {
     await this.redis.hset(this.STATE_KEY, token, JSON.stringify({
       seq: client.seq,
       joined_at: client.joined_at,
+      last_ping: Date.now(),
       checked: true
     }));
 
@@ -123,11 +91,8 @@ export class QueueStore {
     };
   }
 
-  // Get a range of slots, filling gaps with 'phantom' data if needed for the mock
   async getRange(fromPos: number, toPos: number, offset: number, total: number): Promise<SlotSummary[]> {
     const summaries: SlotSummary[] = [];
-    
-    // Get tokens in the requested range (adjusted for mock offset)
     const start = Math.max(0, fromPos - offset);
     const end = Math.max(0, toPos - offset);
     
@@ -154,7 +119,6 @@ export class QueueStore {
       if (realClient) {
         summaries.push(realClient);
       } else {
-        // Mock phantom slot
         summaries.push({
           seq: -1000 - i,
           position: i,
@@ -169,7 +133,6 @@ export class QueueStore {
     return await this.redis.zcard(this.QUEUE_KEY);
   }
 
-  // Get all real clients (for broadcasting/position updates)
   async getAllRealClients(): Promise<{token: string, seq: number}[]> {
     const raw = await this.redis.zrange(this.QUEUE_KEY, 0, -1, 'WITHSCORES');
     const clients: {token: string, seq: number}[] = [];
@@ -177,5 +140,30 @@ export class QueueStore {
       clients.push({ token: raw[i], seq: parseInt(raw[i+1]) });
     }
     return clients;
+  }
+
+  async touch(token: string): Promise<void> {
+    const stateStr = await this.redis.hget(this.STATE_KEY, token);
+    if (!stateStr) return;
+
+    const state = JSON.parse(stateStr);
+    state.last_ping = Date.now();
+    await this.redis.hset(this.STATE_KEY, token, JSON.stringify(state));
+  }
+
+  async evictStale(thresholdMs: number): Promise<QueueClient[]> {
+    const now = Date.now();
+    const allStates = await this.redis.hgetall(this.STATE_KEY);
+    const evicted: QueueClient[] = [];
+
+    for (const [token, stateStr] of Object.entries(allStates)) {
+      const state = JSON.parse(stateStr);
+      if (!state.checked && now - state.last_ping > thresholdMs) {
+        await this.remove(token);
+        evicted.push({ token, ...state });
+      }
+    }
+
+    return evicted;
   }
 }
