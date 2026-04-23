@@ -18,6 +18,7 @@
 - [x] "You have won" screen/status (Initial implementation complete)
 - [ ] When your box becomes available to check, a timer starts. You have 30 minutes to check it, or you are PUNISHED
 - [ ] Seasonality and Persistence. There should be a net timer for when the "season" ends, and there can be no more winners. Previous winners of previous seasons should be enshrined forever.
+- [ ] Cron/Job Scheduler
 
 ## Proposal Brainstorm
 
