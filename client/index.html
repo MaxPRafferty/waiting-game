@@ -7,13 +7,13 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☐</text></svg>">
   <style>
     :root {
-      --bg:         #16161d; /* Eigengrau */
+      --bg:         #16161d;
       --text:       #e0d8c8;
       --muted:      #a89a80;
       --border:     #3a342a;
       --ghost:      #2a241a;
-      --primary:    #ffcc00; /* Mustard of Authority */
-      --secondary:  #cc99ff; /* Indifferent Lavender */
+      --primary:    #ffcc00;
+      --secondary:  #cc99ff;
       --winner-bg:  var(--primary);
       --winner-fg:  var(--bg);
       --scale:      1.4;
@@ -128,7 +128,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      position: relative;
+      position: absolute;
       flex-shrink: 0;
       transition: opacity 30s linear;
     }
@@ -270,8 +270,11 @@
   let scrollOffset = 0;
   let viewportWidth = 0;
   const SLOT_WIDTH = 34;
+  const DOM_POOL_SIZE = 120;
 
   const slots = new Map();
+  const domPool = [];
+  const labelPool = [];
 
   const $posNumber      = document.getElementById('pos-number');
   const $posLabel       = document.getElementById('pos-label');
@@ -287,18 +290,70 @@
   const $btnMe          = document.getElementById('btn-me');
   const $btnBack        = document.getElementById('btn-back');
 
+  function initDomPool() {
+    for (let i = 0; i < DOM_POOL_SIZE; i++) {
+      const el = document.createElement('div');
+      el.className = 'slot';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      el.appendChild(cb);
+      el.style.display = 'none';
+      $strip.appendChild(el);
+      domPool.push({ el, cb });
+    }
+    for (let i = 0; i < DOM_POOL_SIZE / 5; i++) {
+      const lbl = document.createElement('div');
+      lbl.className = 'strip-label';
+      lbl.style.display = 'none';
+      $stripLabels.appendChild(lbl);
+      labelPool.push(lbl);
+    }
+  }
+  initDomPool();
+
   const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
-  const ws = new WebSocket(wsUrl);
+  let ws = null;
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.addEventListener('open', () => send({ type: 'join', token }));
+    ws.addEventListener('message', handleWsMessage);
+    ws.addEventListener('close', () => {
+      if (pingInterval) clearInterval(pingInterval);
+      showStatus('The connection has been lost. Reload to rejoin.', 'negative');
+    });
+    ws.addEventListener('error', (_err) => {
+      console.warn('WebSocket encountered a difficulty.');
+      showStatus('The connection encountered a difficulty.', 'negative');
+    });
+  }
 
   function send(msg) {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }
   }
 
   let pingInterval = null;
   function startPingLoop() {
+    if (pingInterval) clearInterval(pingInterval);
     pingInterval = setInterval(() => send({ type: 'ping' }), 5000);
+  }
+
+  async function restAction(path, method = 'POST', body = null) {
+    try {
+      const options = {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+      };
+      if (body) options.body = JSON.stringify(body);
+      const res = await fetch(path, options);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      console.warn(`REST action ${path} failed:`, err);
+      return null;
+    }
   }
 
   function render() {
@@ -309,8 +364,8 @@
     const startPos = Math.floor(scrollOffset);
     const endPos = startPos + visibleCount;
 
-    $strip.innerHTML = '';
-    $stripLabels.innerHTML = '';
+    domPool.forEach(item => item.el.style.display = 'none');
+    labelPool.forEach(lbl => lbl.style.display = 'none');
     $stripPointer.innerHTML = '';
 
     const visiblePositions = [];
@@ -322,46 +377,47 @@
       .filter(s => s.seq < mySeq && s.state === 'waiting' && s.seq >= 0)
       .length === 0;
 
-    visiblePositions.forEach((pos, _visIdx) => {
+    let poolIdx = 0;
+    let labelIdx = 0;
+
+    visiblePositions.forEach((pos) => {
       const slot = Array.from(slots.values()).find(s => s.position === pos);
-      if (!slot) return;
+      if (!slot || poolIdx >= DOM_POOL_SIZE) return;
 
-      const el = document.createElement('div');
-      el.className = 'slot';
-      el.dataset.seq = slot.seq;
+      const item = domPool[poolIdx++];
+      item.el.style.display = 'flex';
+      item.el.dataset.seq = slot.seq;
       const left = (pos - scrollOffset) * SLOT_WIDTH;
-      el.style.position = 'absolute';
-      el.style.left = left + 'px';
+      item.el.style.left = left + 'px';
 
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.disabled = true;
-      cb.checked = slot.state === 'checked';
+      item.cb.disabled = true;
+      item.cb.checked = slot.state === 'checked';
+      item.cb.onchange = null;
 
+      item.el.className = 'slot';
       const isMine = slot.seq === mySeq;
 
       if (isMine) {
-        el.classList.add('mine');
+        item.el.classList.add('mine');
         if (isEligible && !myChecked) {
-          el.classList.add('eligible');
-          cb.disabled = false;
-          cb.addEventListener('change', () => {
-            if (cb.checked) send({ type: 'check', token });
-          });
+          item.el.classList.add('eligible');
+          item.cb.disabled = false;
+          item.cb.onchange = async () => {
+            if (item.cb.checked) {
+              const res = await restAction('/check', 'POST', { token });
+              if (!res) item.cb.checked = false;
+            }
+          };
         }
       }
 
-      if (slot.state === 'ghost') el.classList.add('ghost');
+      if (slot.state === 'ghost') item.el.classList.add('ghost');
 
-      el.appendChild(cb);
-      $strip.appendChild(el);
-
-      if (pos % 5 === 0) {
-        const lbl = document.createElement('div');
-        lbl.className = 'strip-label';
+      if (pos % 5 === 0 && labelIdx < labelPool.length) {
+        const lbl = labelPool[labelIdx++];
+        lbl.style.display = 'block';
         lbl.style.left = (left + SLOT_WIDTH / 2) + 'px';
         lbl.textContent = '#' + (pos + 1);
-        $stripLabels.appendChild(lbl);
       }
 
       if (isMine) {
@@ -386,7 +442,6 @@
 
     if (scrollOffset !== prevOffset) {
       render();
-
       const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
       const from = Math.max(0, Math.floor(scrollOffset) - 5);
       const to = from + visibleCount;
@@ -398,10 +453,7 @@
     }
   }
 
-  window.addEventListener('wheel', (e) => {
-    updateScroll(e.deltaY || e.deltaX);
-  }, { passive: true });
-
+  window.addEventListener('wheel', (e) => updateScroll(e.deltaY || e.deltaX), { passive: true });
   window.addEventListener('resize', () => {
     viewportWidth = $strip.clientWidth;
     render();
@@ -476,13 +528,9 @@
     return h + 'h ' + (m % 60) + 'm';
   }
 
-  ws.addEventListener('open', () => {
-    send({ type: 'join', token });
-  });
-
-  ws.addEventListener('message', (ev) => {
+  function handleWsMessage(ev) {
     let msg;
-    try { msg = JSON.parse(ev.data); } catch { return; }
+    try { msg = JSON.parse(ev.data); } catch (_err) { return; }
 
     switch (msg.type) {
       case 'joined':
@@ -500,10 +548,6 @@
             : 'You are in line. The contest is aware of your presence.',
           msg.position === 0 ? 'positive' : 'neutral'
         );
-        break;
-
-      case 'join_rejected':
-        $connectingMsg.textContent = 'The line was unavailable. You may try again shortly.';
         break;
 
       case 'range_state':
@@ -549,28 +593,14 @@
         render();
         break;
 
-      case 'check_rejected':
-        if (msg.reason === 'not_eligible') showStatus('It is not yet your turn. The box remains unavailable.', 'negative');
-        render();
-        break;
-
       case 'winner':
         showAnnouncement(`A contestant at position #${msg.position + 1} has checked their box after ${formatDuration(msg.duration_ms)}.`);
         if (msg.seq !== mySeq) showStatus('Someone ahead of you has finished. The line adjusts.', 'neutral');
         break;
-
-      case 'pong': break;
     }
-  });
+  }
 
-  ws.addEventListener('close', () => {
-    if (pingInterval) clearInterval(pingInterval);
-    showStatus('The connection has been lost. Reload to rejoin at the back of the line.', 'negative');
-  });
-
-  ws.addEventListener('error', () => {
-    showStatus('The connection encountered a difficulty.', 'negative');
-  });
+  connect();
 })();
 </script>
 </body>
