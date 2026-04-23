@@ -11,20 +11,23 @@ You have arrived at a webpage containing an indeterminate number of checkboxes a
 1. **Join the Line:** You are automatically assigned a position at the back.
 2. **Observe:** You can scroll to see others waiting.
 3. **Wait:** You can only check your box when all boxes ahead of you are checked.
-4. **Spectacle:** Departed checkboxes visually "ghost" and fade away.
-5. **Persistence:** Winners are recorded on a global leaderboard.
+4. **Socialize:** Chat with your "checkbox neighborhood" via serverless P2P WebRTC.
+5. **Enshrine:** Create an account to name your checkbox and earn badges.
+6. **Spectacle:** Departed checkboxes visually "ghost" and fade away.
+7. **Persistence:** Winners are recorded on a global leaderboard.
 
 ## Tech Stack
 - **Backend:** Node.js, Express, WebSockets (`ws`).
-- **Persistence:** Redis (Sorted Sets for the queue, Hashes for state).
+- **Persistence:** Redis (Queue/Heartbeats) & Supabase (Auth/Storage).
 - **Architecture:** Tri-layered (Tools, Workers, Handlers) with OpenAPI/AsyncAPI specifications.
-- **Frontend:** Vanilla JavaScript with Fixed DOM Pool Virtual Scrolling.
+- **Frontend:** Vanilla JS, Fixed DOM Pool Virtual Scrolling, Trystero (P2P Chat).
 
 ## Local Development
 
 ### Prerequisites
 - Node.js (v20+)
 - Redis (running on `localhost:6379`)
+- Supabase Project (for live mode)
 
 ### Setup
 1. Clone the repository.
@@ -44,7 +47,7 @@ docker run -p 3000:3000 waiting-game
 ### Fly.io
 1. Create a Fly app: `fly launch`
 2. Provision a Redis instance: `fly redis create`
-3. Set the `REDIS_URL` secret: `fly secrets set REDIS_URL=redis://...`
+3. Set the `REDIS_URL`, `SUPABASE_URL`, and `SUPABASE_KEY` secrets.
 4. Deploy: `fly deploy`
 
 ## Code Standards

@@ -216,6 +216,71 @@
       background: var(--primary);
       color: var(--bg);
     }
+
+    /* ── Neighborhood Chat ── */
+    .chat-panel {
+      position: fixed;
+      bottom: calc(20px * var(--scale));
+      right: calc(32px * var(--scale));
+      width: calc(280px * var(--scale));
+      height: calc(320px * var(--scale));
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      font-size: calc(11px * var(--scale));
+      z-index: 1000;
+      opacity: 0.9;
+    }
+
+    .chat-header {
+      padding: calc(8px * var(--scale));
+      border-bottom: 1px solid var(--border);
+      background: var(--border);
+      color: var(--muted);
+      font-style: italic;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: calc(8px * var(--scale));
+      display: flex;
+      flex-direction: column;
+      gap: calc(4px * var(--scale));
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--bg);
+    }
+
+    .chat-msg {
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+
+    .chat-msg .peer { color: var(--secondary); font-weight: bold; }
+    .chat-msg .self { color: var(--primary); font-weight: bold; }
+
+    .chat-input-area {
+      padding: calc(8px * var(--scale));
+      border-top: 1px solid var(--border);
+    }
+
+    #chat-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      padding: calc(4px * var(--scale));
+    }
+
+    #chat-input:focus {
+      border-bottom-color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -249,12 +314,23 @@
   </div>
 </div>
 
+<div class="chat-panel" id="chat-panel" style="display: none;">
+  <div class="chat-header">
+    <span>Neighborhood Chat</span>
+    <span id="chat-peer-count">0 nearby</span>
+  </div>
+  <div class="chat-messages" id="chat-log"></div>
+  <div class="chat-input-area">
+    <input type="text" id="chat-input" placeholder="Say something indifferent..." autocomplete="off" />
+  </div>
+</div>
+
 <div class="footer">
   The Waiting Game &nbsp;·&nbsp; The contest does not have an opinion about your choices.
 </div>
 
 <script>
-(function () {
+(async function () {
   const token = (function() {
     let t = sessionStorage.getItem('wg_token');
     if (!t) {
@@ -264,6 +340,7 @@
     return t;
   })();
 
+  // ── State ──
   let mySeq = null;
   let myPosition = null; // Absolute
   let myWaitingPosition = null; // Current place in waiting line
@@ -281,8 +358,8 @@
   const domPool = [];
   const labelPool = [];
 
+  // ── DOM Refs ──
   const $posNumber      = document.getElementById('pos-number');
-  const $posLabel       = document.getElementById('pos-label');
   const $departureCounter = document.getElementById('departure-counter');
   const $announcement   = document.getElementById('announcement');
   const $status         = document.getElementById('status');
@@ -294,7 +371,81 @@
   const $btnFront       = document.getElementById('btn-front');
   const $btnMe          = document.getElementById('btn-me');
   const $btnBack        = document.getElementById('btn-back');
+  
+  const $chatPanel      = document.getElementById('chat-panel');
+  const $chatLog        = document.getElementById('chat-log');
+  const $chatInput      = document.getElementById('chat-input');
+  const $chatPeerCount  = document.getElementById('chat-peer-count');
 
+  // ── P2P Chat (Trystero) ──
+  let p2pRoom = null;
+  let p2pSendAction = null;
+  let currentNeighborhood = -1;
+
+  async function initP2P() {
+    try {
+      const {joinRoom} = await import('https://cdn.skypack.dev/trystero/torrent');
+      const config = {appId: 'the-waiting-game-neighborhood'};
+      
+      window.updateNeighborhood = (bucketId) => {
+        if (bucketId === currentNeighborhood) return;
+        currentNeighborhood = bucketId;
+        
+        if (p2pRoom) p2pRoom.leave();
+        
+        p2pRoom = joinRoom(config, `neighborhood-${bucketId}`);
+        const [send, receive] = p2pRoom.makeAction('chat');
+        p2pSendAction = send;
+        
+        $chatLog.innerHTML = `<div class="chat-msg"><em>Entered neighborhood ${bucketId + 1}</em></div>`;
+        $chatPeerCount.textContent = '0 nearby';
+
+        p2pRoom.onPeerJoin(id => {
+          updatePeerCount();
+          console.warn(`[P2P] Peer joined: ${id}`);
+        });
+        p2pRoom.onPeerLeave(id => {
+          updatePeerCount();
+          console.warn(`[P2P] Peer left: ${id}`);
+        });
+
+        receive((data, peerId) => {
+          addChatMessage(peerId.substring(0, 5), data, false);
+        });
+
+        updatePeerCount();
+      };
+
+      function updatePeerCount() {
+        const count = Object.keys(p2pRoom.getPeers()).length;
+        $chatPeerCount.textContent = `${count} nearby`;
+      }
+
+      $chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && $chatInput.value.trim()) {
+          const text = $chatInput.value.trim();
+          if (p2pSendAction) p2pSendAction(text);
+          addChatMessage('you', text, true);
+          $chatInput.value = '';
+        }
+      });
+
+      $chatPanel.style.display = 'flex';
+    } catch (err) {
+      console.warn('[P2P] Failed to initialize Trystero:', err);
+    }
+  }
+
+  function addChatMessage(author, text, isSelf) {
+    const el = document.createElement('div');
+    el.className = 'chat-msg';
+    const nameClass = isSelf ? 'self' : 'peer';
+    el.innerHTML = `<span class="${nameClass}">${author}:</span> ${text}`;
+    $chatLog.appendChild(el);
+    $chatLog.scrollTop = $chatLog.scrollHeight;
+  }
+
+  // ── Initialization ──
   function initDomPool() {
     for (let i = 0; i < DOM_POOL_SIZE; i++) {
       const el = document.createElement('div');
@@ -448,6 +599,11 @@
     if (scrollOffset !== prevOffset || isAbsolute) {
       render();
       syncViewport();
+      
+      // Update P2P neighborhood (100 slots per room)
+      if (window.updateNeighborhood) {
+        window.updateNeighborhood(Math.floor(scrollOffset / 100));
+      }
     }
   }
 
@@ -574,6 +730,7 @@
           msg.waiting_position === 0 ? 'positive' : 'neutral'
         );
         syncViewport(true);
+        initP2P();
         break;
 
       case 'range_state':
@@ -616,7 +773,7 @@
       case 'check_ok':
         myChecked = true;
         if (slots.has(mySeq)) slots.get(mySeq).state = 'checked';
-        updatePosition(msg.position, 0); // They are effectively at 0 waiting position now
+        updatePosition(msg.position, 0);
         showStatus('You have checked your box. The contest notes your participation.', 'positive');
         render();
         break;
