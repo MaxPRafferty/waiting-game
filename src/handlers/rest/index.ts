@@ -66,3 +66,19 @@ export const leaderboardHandler = async (_req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const ogImageHandler = async (req: Request, res: Response) => {
+  const position = parseInt(req.query.position as string);
+  if (isNaN(position)) {
+    return res.status(400).json({ error: 'Invalid position parameter' });
+  }
+
+  try {
+    const buffer = await queueWorker.generateOgImage(position);
+    res.setHeader('Content-Type', 'image/png');
+    return res.send(buffer);
+  } catch (error) {
+    console.error('OG Image error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};

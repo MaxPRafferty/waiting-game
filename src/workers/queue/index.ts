@@ -2,6 +2,7 @@ import { queue } from '../../tools/queue/index.js';
 import { subscription } from '../../tools/subscription/index.js';
 import { statistics } from '../../tools/statistics/index.js';
 import { leaderboard } from '../../tools/leaderboard/index.js';
+import { imageGenerator } from '../../tools/imageGenerator/index.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
@@ -123,6 +124,10 @@ export class QueueWorker {
 
   async getLeaderboard(limit = 10) {
     return await leaderboard.getRecentWinners(limit);
+  }
+
+  async generateOgImage(position: number): Promise<Buffer> {
+    return await imageGenerator.generate(position);
   }
 
   async getRandomActivity(): Promise<ServerMessage[]> {

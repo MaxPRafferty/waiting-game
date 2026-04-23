@@ -6,4 +6,5 @@ export const bindRoutes = (app: Express) => {
   app.post('/check', restHandlers.checkHandler);
   app.get('/viewport', restHandlers.viewportHandler);
   app.get('/leaderboard', restHandlers.leaderboardHandler);
+  app.get('/og-image', restHandlers.ogImageHandler);
 };
