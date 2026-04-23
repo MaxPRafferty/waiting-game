@@ -199,7 +199,36 @@
       font-style: italic;
       font-size: calc(14px * var(--scale));
     }
-  </style>
+
+    /* ── Navigation ── */
+    .nav-bar {
+      margin-top: calc(32px * var(--scale));
+      display: flex;
+      justify-content: center;
+      gap: calc(12px * var(--scale));
+    }
+
+    .nav-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: calc(6px * var(--scale)) calc(12px * var(--scale));
+      font-size: calc(11px * var(--scale));
+      font-family: Georgia, serif;
+      font-style: italic;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .nav-btn:active {
+      background: var(--primary);
+      color: var(--bg);
+    }
 </head>
 <body>
 
@@ -220,6 +249,12 @@
     <div class="strip-labels" id="strip-labels"></div>
     <div class="strip" id="strip"></div>
     <div class="strip-pointer" id="strip-pointer"></div>
+    
+    <div class="nav-bar">
+      <button id="btn-front" class="nav-btn">Watch the Front</button>
+      <button id="btn-me" class="nav-btn">Return to My Box</button>
+      <button id="btn-back" class="nav-btn">Watch the Back</button>
+    </div>
   </div>
 </div>
 
@@ -262,6 +297,9 @@
   const $strip          = document.getElementById('strip');
   const $stripLabels    = document.getElementById('strip-labels');
   const $stripPointer   = document.getElementById('strip-pointer');
+  const $btnFront       = document.getElementById('btn-front');
+  const $btnMe          = document.getElementById('btn-me');
+  const $btnBack        = document.getElementById('btn-back');
 
   // ── WebSocket ──
   const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
@@ -363,17 +401,20 @@
 
   // ── Scroll Handling ──
   let lastSubscribedRange = { from: -1, to: -1 };
+  const SLOT_WIDTH_JS = 34; // Matches CSS
 
-  function updateScroll(delta) {
+  function updateScroll(delta, isAbsolute = false) {
     const prevOffset = scrollOffset;
-    // Map wheel delta to scroll. Positive delta usually means "down" or "right".
-    // We want "down" to move the offset forward (to the right).
-    scrollOffset = Math.max(0, Math.min(totalSlots - 1, scrollOffset + delta / SLOT_WIDTH));
+    if (isAbsolute) {
+      scrollOffset = Math.max(0, Math.min(totalSlots - 1, delta));
+    } else {
+      scrollOffset = Math.max(0, Math.min(totalSlots - 1, scrollOffset + delta / SLOT_WIDTH_JS));
+    }
 
     if (scrollOffset !== prevOffset) {
       render();
 
-      const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
+      const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH_JS) + 10;
       const from = Math.max(0, Math.floor(scrollOffset) - 5);
       const to = from + visibleCount;
 
@@ -391,6 +432,22 @@
   window.addEventListener('resize', () => {
     viewportWidth = $strip.clientWidth;
     render();
+  });
+
+  // ── Navigation Click Handlers ──
+  $btnFront.addEventListener('click', () => {
+    updateScroll(0, true);
+  });
+
+  $btnMe.addEventListener('click', () => {
+    if (myPosition === null) return;
+    const targetOffset = Math.max(0, myPosition - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
+    updateScroll(targetOffset, true);
+  });
+
+  $btnBack.addEventListener('click', () => {
+    const targetOffset = Math.max(0, totalSlots - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
+    updateScroll(targetOffset, true);
   });
 
   // ── Colors ──

@@ -1,7 +1,6 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { QueueStore } from './queue.js';
 import type { ClientMessage, ServerMessage } from './types.js';
@@ -64,7 +63,9 @@ function handleDeparture(token: string) {
   // Close the socket if it's still open
   try {
     if (client.ws.readyState === WebSocket.OPEN) client.ws.terminate();
-  } catch {}
+  } catch {
+    // Already closed or disconnected
+  }
 
   broadcast({ type: 'left', seq: client.seq, departures_today: departuresTotal });
   notifyPositionsBehind(client.seq);
@@ -269,15 +270,17 @@ setInterval(() => {
     });
   }
 
-  // Random phantom arrival (new box at the end)
-  if (Math.random() < 0.3) {
-    const currentTotal = MOCK_TOTAL_SIZE + queue.size();
-    broadcast({
-      type: 'range_update',
-      seq: -2000 - currentTotal, // New phantom seq
-      position: currentTotal,
-      state: 'waiting'
-    });
+  // Random phantom arrival (new box at the end) - Increased frequency!
+  for (let i = 0; i < 2; i++) {
+    if (Math.random() < 0.75) {
+      const currentTotal = MOCK_TOTAL_SIZE + queue.size();
+      broadcast({
+        type: 'range_update',
+        seq: -2000 - currentTotal - i, // Unique phantom seq
+        position: currentTotal,
+        state: 'waiting'
+      });
+    }
   }
 
 }, PING_INTERVAL_MS);
