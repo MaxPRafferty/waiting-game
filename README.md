@@ -1,63 +1,77 @@
 # The Waiting Game
 
-You navigate to a webpage. You are placed at the back of a very long line.
+*Presented without apology.*
+
+There is a line. You are in it.
 
 The line is made of checkboxes.
 
 ---
 
-## How it works
+## What is happening
 
-When you arrive, you are scrolled to your position — a single checkbox among potentially millions, stretching out to the left as far as you can see. Each checkbox belongs to one person. Yours belongs to you.
+You have arrived at a webpage containing an indeterminate number of checkboxes arranged in a horizontal row. Upon arrival, you have been assigned one. It is yours. You may not have another.
 
-The people ahead of you in line are waiting too. As each of them gets their turn, they check their box. You watch it happen in real time — one by one, from left to right, the checkboxes ahead of you fill in.
+The people who arrived before you are somewhere to your left, waiting. When it is their turn, they will check their box. You will watch. This may take some time.
 
-When the last checkbox ahead of yours is checked, it's your turn. You can check your box.
+When the last person ahead of you checks their box, it will be your turn. You may check your box at that time. Not before.
 
-That's it. That's the game.
-
----
-
-## The rules
-
-**You stay in line by staying on the page.** Close the tab, navigate away, let your laptop die — you're out. Your checkbox disappears, and everyone behind you moves forward.
-
-**You can't check your box early.** It's grayed out until everyone ahead of you has checked theirs. No shortcuts.
-
-**New people join behind you continuously.** The line keeps growing at the back. Your position at the front is earned by outlasting the people ahead of you, not by being early.
-
-**If you make it, you win.** Your name goes on the leaderboard. Everyone currently on the site gets a notification. You checked your box.
+That is the game. That has always been the game.
 
 ---
 
-## What you'll see
+## The conditions
 
-A dark screen. A long strip of checkboxes. Your position number — large, in the top corner.
+**You maintain your place in line by remaining on the page.** Those who leave are removed. Their checkbox disappears. The line closes around their absence like water. This is not personal.
 
-**#47,291 in line.**
+**You cannot check your box ahead of schedule.** The box is unavailable until the appropriate moment. Please do not attempt to check it early. It will not work. We understand the impulse.
 
-To the left of you: checked boxes (people who made it) and unchecked boxes (people still waiting, like you). Sometimes a box fades out — someone just gave up. Sometimes a checked box appears to your left — someone just won.
+**New participants arrive continuously at the back.** The line grows. This is a feature, not a complication. You were also once at the back.
 
-You can scroll to any part of the line and watch. The front of the line, where people are checking. The back, where new arrivals pile in. Anywhere.
-
----
-
-## The feeling
-
-Winning requires patience, not skill. That's what makes it both democratic and infuriating.
-
-You're not playing against the game. You're playing against yourself — your own willingness to keep a browser tab open while your position ticks down, one by one, over hours or days.
-
-Most people won't make it. That's fine. That's the point.
+**If you make it, you win.** Your name will appear on the board. Everyone currently present will be notified. You checked your box.
 
 ---
 
-## The look
+## What you will see
 
-Terminal. Monospace. Dark. No color except the checkboxes themselves and the green flash when someone wins.
+A long row of checkboxes. Yours, somewhere in it. A number — large, in the corner — telling you your position.
 
-The number is the hero. Everything else is just chrome around it.
+**#47,291**
+
+To your left: boxes that have been checked, and boxes that have not been yet. Occasionally a box will simply cease to be there. Someone has gone. The line adjusts. Sometimes a box lingers for a moment before going, the way a candle does. This is normal.
+
+You may scroll to any part of the line. The front, where things are happening. The back, where new arrivals continue to appear with optimism. The middle, where nothing in particular is occurring and will continue to occur for some time. Many participants find this meditative. We do not endorse this characterization.
 
 ---
 
-*Built for fun. Probably more complex than it has any right to be.*
+## The nature of the contest
+
+This is a test of patience, not skill. This is important. Anyone can win. Anyone can lose.
+
+The longer you remain, the more you have invested in remaining. We acknowledge this. We decline to elaborate on what it means.
+
+People have stayed for hours. Some longer. The contest does not have an opinion about your choices.
+
+The contest began as a small thing. It has become this. These are not contradictory facts.
+
+---
+
+## The board
+
+Those who have checked their boxes are recorded. Their position. The time they held on. They are listed in the order they finished, which is also the order they endured.
+
+When someone checks their box, everyone present is informed. This is a courtesy. It is also a reminder.
+
+---
+
+## A note on departures
+
+When a participant leaves, the line does not mourn. The line does not celebrate. The line simply continues, as it has always continued, one checkbox at a time, toward an end that is approaching but has not yet arrived.
+
+A number of participants have departed today. You know the number. It is displayed in the corner.
+
+We do not judge them. The contest does not judge them. We note only that they are gone, and that you are not.
+
+---
+
+*The Waiting Game has been running since it began. It will continue until it stops.*

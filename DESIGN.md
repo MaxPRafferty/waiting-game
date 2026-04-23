@@ -24,12 +24,16 @@ Direct prior art: One Million Checkboxes (OMCB, June 2024) — shared state, any
 The number is the product. "#47,291 in line" is instantly shareable. Checkboxes are just the visual carrier.
 
 The core mechanic creates compounding tension:
-- You're simultaneously watching people ahead of you succeed and drop out
-- You can see rage-quits happening in real time (ghost checkboxes fading)
-- The longer you survive, the more you've invested — loss aversion kicks in hard
-- Winning requires patience, not skill — which makes it democratic and infuriating in equal measure
+- You're simultaneously watching people ahead succeed and disappear
+- Departures are visible in real time — a checkbox lingers briefly, then closes like water over a stone
+- The longer you remain, the more you have invested in remaining — we decline to elaborate on what this means
+- Winning requires patience, not skill — which makes it democratic and, after sufficient time, existentially exhausting
 
 The spectator angle (scrolling to arbitrary positions to watch other people wait) is an emergent social layer that costs nothing extra to support.
+
+**Tone reference:** Blaseball's matter-of-fact treatment of increasingly unhinged events. Welcome to Night Vale's civic-announcement deadpan. The real-world endurance contests — Hands on a Hardbody, radio station car-roof standoffs, 24-hour dance marathons — where something began as a lark and became, through the sheer refusal of participants to stop, something else entirely. The internet age killed these contests. This is one of them anyway.
+
+Language should surface this without announcing it. "The abyss stopped staring back" instead of "rage quit." Departures noted with the tone of a public works announcement. Wins noted with the tone of a civic honor. The interface is indifferent. The contest has always been running. It will continue.
 
 ## Constraints
 
@@ -50,7 +54,7 @@ The spectator angle (scrolling to arbitrary positions to watch other people wait
 
 Independent Claude subagent cold read on the architecture:
 
-**Ghost checkboxes (untapped twist):** When a user leaves, their slot fades out with an animation over ~30 seconds rather than vanishing instantly. Add a live rage-quit counter: "3,241 people have rage-quit today." Transforms the individual waiting experience into spectator sport. The emotional hook shifts from "waiting" to "watching people crack."
+**Departures as spectacle:** When a user leaves, their slot fades out with an animation over ~30 seconds rather than vanishing instantly — the way a candle goes, not a switch. A counter surfaces how many have departed today, phrased in the voice of a public notice rather than internet shorthand. ("1,847 have been returned to the world today." "The abyss stopped staring back at 312 participants." Exact phrasing TBD but in this register.) The emotional hook shifts from "waiting" to "watching the line breathe."
 
 **The tell:** "The 'whoa' moment: seeing '#47,291 in line' with a sea of live checkboxes in a screenshot." The builder isn't excited about checkboxes — they're excited about social proof at scale. The number is the product. Every design decision should serve the screenshot moment: tab title shows your position, OG image is dynamically generated per-user, leaderboard surfaces position numbers prominently.
 
@@ -166,7 +170,7 @@ Minimum message schema (client ↔ server):
 - **Domain:** Something memorable. `waitinggame.lol` or similar.
 - **No CI/CD for now:** Manual `fly deploy` until the queue is stable. Add GitHub Actions after v1.
 - **OG image generation:** Post-v1 nice-to-have. Server-side canvas or `@vercel/og` to generate a per-user shareable image showing their position number. Not required for v1 — users can screenshot.
-- **Rage-quit counter:** Post-v1. Requires a Redis counter (`INCR ragequits:today` with daily TTL). Not a correctness feature; add after core mechanic is live.
+- **Departure counter:** Post-v1. Requires a Redis counter (`INCR departures:today` with daily TTL). Displayed in the voice of a public notice — exact phrasing drawn from the tone guide. Not a correctness feature; add after core mechanic is live.
 
 ## Next Steps
 
@@ -203,4 +207,4 @@ That's the whole game in miniature. If that feels right, the rest is just engine
 ## Wireframe Reference
 
 Visual sketch generated during design session.
-Dark terminal aesthetic, monospace, position counter dominant, ghost checkbox state visible in strip.
+Reference wireframe only — terminal aesthetic in the sketch is superseded by the updated tone guide. Visual direction TBD: warm, indifferent, slightly institutional. Not programmer-dark. Something that has been running longer than it was designed to.
