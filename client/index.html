@@ -8,9 +8,9 @@
   <style>
     :root {
       --bg:         #16161d; /* Eigengrau */
-      --text:       #e0d8c8; /* Inverted from original dark */
+      --text:       #e0d8c8;
       --muted:      #a89a80;
-      --border:     #3a342a; /* Inverted from light border */
+      --border:     #3a342a;
       --ghost:      #2a241a;
       --primary:    #ffcc00; /* Mustard of Authority */
       --secondary:  #cc99ff; /* Indifferent Lavender */
@@ -32,7 +32,6 @@
       user-select: none;
     }
 
-    /* ── Header ── */
     .header {
       padding: calc(20px * var(--scale)) calc(32px * var(--scale)) calc(14px * var(--scale));
       border-bottom: 1px solid var(--border);
@@ -64,7 +63,6 @@
       line-height: 1.5;
     }
 
-    /* ── Winner announcement ── */
     .announcement {
       background: var(--winner-bg);
       color: var(--winner-fg);
@@ -76,7 +74,6 @@
     }
     .announcement.visible { display: block; }
 
-    /* ── Status ── */
     .status {
       padding: calc(7px * var(--scale)) calc(32px * var(--scale));
       font-size: calc(13px * var(--scale));
@@ -87,7 +84,6 @@
       min-height: calc(30px * var(--scale));
     }
 
-    /* ── Main viewport ── */
     .main {
       flex: 1;
       display: flex;
@@ -101,7 +97,6 @@
       position: relative;
     }
 
-    /* Position labels */
     .strip-labels {
       height: calc(18px * var(--scale));
       position: relative;
@@ -116,7 +111,6 @@
       white-space: nowrap;
     }
 
-    /* The checkbox strip */
     .strip {
       display: flex;
       align-items: center;
@@ -129,7 +123,7 @@
     }
 
     .slot {
-      width: 34px; /* Increased from 24px * 1.4 = 33.6 */
+      width: 34px;
       height: 34px;
       display: flex;
       align-items: center;
@@ -145,27 +139,23 @@
       cursor: default;
       accent-color: var(--text);
       pointer-events: none;
-      filter: invert(1); /* Ensure the checkbox itself is visible on dark bg */
+      filter: invert(1);
     }
 
-    /* User's own slot */
     .slot.mine {
       outline: 1px dashed var(--muted);
       outline-offset: -3px;
     }
 
-    /* Eligible to check */
     .slot.eligible input {
       cursor: pointer;
       pointer-events: all;
     }
 
-    /* Ghost: someone just left — fade via transition already on .slot */
     .slot.ghost {
       opacity: 0.12;
     }
 
-    /* Pointer below strip */
     .strip-pointer {
       position: relative;
       height: calc(20px * var(--scale));
@@ -180,7 +170,6 @@
       font-style: italic;
     }
 
-    /* ── Footer ── */
     .footer {
       padding: calc(10px * var(--scale)) calc(32px * var(--scale));
       border-top: 1px solid var(--border);
@@ -189,7 +178,6 @@
       flex-shrink: 0;
     }
 
-    /* ── Connecting overlay ── */
     .connecting {
       flex: 1;
       display: flex;
@@ -200,7 +188,6 @@
       font-size: calc(14px * var(--scale));
     }
 
-    /* ── Navigation ── */
     .nav-bar {
       margin-top: calc(32px * var(--scale));
       display: flex;
@@ -229,6 +216,7 @@
       background: var(--primary);
       color: var(--bg);
     }
+  </style>
 </head>
 <body>
 
@@ -264,29 +252,27 @@
 
 <script>
 (function () {
-  // ── Token ──
-  let token = localStorage.getItem('wg_token');
-  if (!token) {
-    token = crypto.randomUUID();
-    localStorage.setItem('wg_token', token);
-  }
+  const token = (function() {
+    let t = localStorage.getItem('wg_token');
+    if (!t) {
+      t = crypto.randomUUID();
+      localStorage.setItem('wg_token', t);
+    }
+    return t;
+  })();
 
-  // ── State ──
   let mySeq = null;
   let myPosition = null;
   let myChecked = false;
   let departuresTotal = 0;
   let totalSlots = 0;
 
-  // Virtual scroll state
-  let scrollOffset = 0; // The position (0-indexed) at the left of the viewport
+  let scrollOffset = 0;
   let viewportWidth = 0;
-  const SLOT_WIDTH = 24;
+  const SLOT_WIDTH = 34;
 
-  // Map<seq, { position, state: 'waiting'|'checked'|'ghost' }>
   const slots = new Map();
 
-  // ── DOM refs ──
   const $posNumber      = document.getElementById('pos-number');
   const $posLabel       = document.getElementById('pos-label');
   const $departureCounter = document.getElementById('departure-counter');
@@ -301,8 +287,7 @@
   const $btnMe          = document.getElementById('btn-me');
   const $btnBack        = document.getElementById('btn-back');
 
-  // ── WebSocket ──
-  const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
   const ws = new WebSocket(wsUrl);
 
   function send(msg) {
@@ -311,45 +296,39 @@
     }
   }
 
-  // ── Ping loop ──
   let pingInterval = null;
-
   function startPingLoop() {
     pingInterval = setInterval(() => send({ type: 'ping' }), 5000);
   }
 
-  // ── Rendering ──
   function render() {
     if (totalSlots === 0 || mySeq === null) return;
+    if (viewportWidth === 0) viewportWidth = $strip.clientWidth || window.innerWidth - 64;
 
     const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 2;
     const startPos = Math.floor(scrollOffset);
     const endPos = startPos + visibleCount;
 
-    // Clear
     $strip.innerHTML = '';
     $stripLabels.innerHTML = '';
     $stripPointer.innerHTML = '';
 
-    // Create a range to show
     const visiblePositions = [];
     for (let i = startPos; i <= endPos; i++) {
       if (i >= 0 && i < totalSlots) visiblePositions.push(i);
     }
 
-    const isEligible = !myChecked && [...slots.values()]
-      .filter(s => s.seq < mySeq && s.state === 'waiting')
+    const isEligible = !myChecked && Array.from(slots.values())
+      .filter(s => s.seq < mySeq && s.state === 'waiting' && s.seq >= 0)
       .length === 0;
 
-    visiblePositions.forEach((pos, visIdx) => {
-      // Find slot by position
-      const slot = [...slots.values()].find(s => s.position === pos);
+    visiblePositions.forEach((pos, _visIdx) => {
+      const slot = Array.from(slots.values()).find(s => s.position === pos);
       if (!slot) return;
 
       const el = document.createElement('div');
       el.className = 'slot';
       el.dataset.seq = slot.seq;
-      // Precise sub-pixel positioning based on scrollOffset
       const left = (pos - scrollOffset) * SLOT_WIDTH;
       el.style.position = 'absolute';
       el.style.left = left + 'px';
@@ -372,14 +351,11 @@
         }
       }
 
-      if (slot.state === 'ghost') {
-        el.classList.add('ghost');
-      }
+      if (slot.state === 'ghost') el.classList.add('ghost');
 
       el.appendChild(cb);
       $strip.appendChild(el);
 
-      // Position label every 5 positions
       if (pos % 5 === 0) {
         const lbl = document.createElement('div');
         lbl.className = 'strip-label';
@@ -388,7 +364,6 @@
         $stripLabels.appendChild(lbl);
       }
 
-      // Pointer below user's slot
       if (isMine) {
         const ptr = document.createElement('div');
         ptr.className = 'pointer-label';
@@ -399,22 +374,20 @@
     });
   }
 
-  // ── Scroll Handling ──
   let lastSubscribedRange = { from: -1, to: -1 };
-  const SLOT_WIDTH_JS = 34; // Matches CSS
 
   function updateScroll(delta, isAbsolute = false) {
     const prevOffset = scrollOffset;
     if (isAbsolute) {
       scrollOffset = Math.max(0, Math.min(totalSlots - 1, delta));
     } else {
-      scrollOffset = Math.max(0, Math.min(totalSlots - 1, scrollOffset + delta / SLOT_WIDTH_JS));
+      scrollOffset = Math.max(0, Math.min(totalSlots - 1, scrollOffset + delta / SLOT_WIDTH));
     }
 
     if (scrollOffset !== prevOffset) {
       render();
 
-      const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH_JS) + 10;
+      const visibleCount = Math.ceil(viewportWidth / SLOT_WIDTH) + 10;
       const from = Math.max(0, Math.floor(scrollOffset) - 5);
       const to = from + visibleCount;
 
@@ -434,26 +407,19 @@
     render();
   });
 
-  // ── Navigation Click Handlers ──
-  $btnFront.addEventListener('click', () => {
-    updateScroll(0, true);
-  });
-
+  $btnFront.addEventListener('click', () => updateScroll(0, true));
   $btnMe.addEventListener('click', () => {
     if (myPosition === null) return;
     const targetOffset = Math.max(0, myPosition - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
     updateScroll(targetOffset, true);
   });
-
   $btnBack.addEventListener('click', () => {
     const targetOffset = Math.max(0, totalSlots - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
     updateScroll(targetOffset, true);
   });
 
-  // ── Colors ──
   const POSITIVE_COLORS = ['#00ffcc', '#99ff99', '#ff99cc'];
   const NEGATIVE_COLORS = ['#ff5050', '#ff9900', '#ff00ff'];
-
   function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
   function updatePosition(pos) {
@@ -482,8 +448,7 @@
       $departureCounter.textContent = '';
       return;
     }
-    $departureCounter.innerHTML =
-      departuresTotal.toLocaleString() + ' have been<br>returned to the world today.';
+    $departureCounter.innerHTML = departuresTotal.toLocaleString() + ' have been<br>returned to the world today.';
   }
 
   function showAnnouncement(text, tone = 'positive') {
@@ -511,7 +476,6 @@
     return h + 'h ' + (m % 60) + 'm';
   }
 
-  // ── Message handling ──
   ws.addEventListener('open', () => {
     send({ type: 'join', token });
   });
@@ -521,17 +485,13 @@
     try { msg = JSON.parse(ev.data); } catch { return; }
 
     switch (msg.type) {
-
-      case 'joined': {
+      case 'joined':
         mySeq = msg.seq;
         myPosition = msg.position;
         $connectingMsg.style.display = 'none';
         $stripContainer.style.display = 'block';
-        viewportWidth = $strip.clientWidth;
-        
-        // Initial scroll to center on user
+        viewportWidth = $strip.clientWidth || window.innerWidth - 64;
         scrollOffset = Math.max(0, myPosition - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
-        
         updatePosition(msg.position);
         startPingLoop();
         showStatus(
@@ -541,105 +501,65 @@
           msg.position === 0 ? 'positive' : 'neutral'
         );
         break;
-      }
 
-      case 'join_rejected': {
+      case 'join_rejected':
         $connectingMsg.textContent = 'The line was unavailable. You may try again shortly.';
         break;
-      }
 
-      case 'range_state': {
+      case 'range_state':
         totalSlots = msg.total;
-        // Keep my slot if it exists
         const mine = mySeq !== null ? slots.get(mySeq) : null;
         slots.clear();
         if (mine) slots.set(mySeq, mine);
-
         for (const s of msg.slots) {
           slots.set(s.seq, { seq: s.seq, position: s.position, state: s.state });
         }
         render();
         break;
-      }
 
-      case 'range_update': {
-        // New or updated slot
+      case 'range_update':
         slots.set(msg.seq, { seq: msg.seq, position: msg.position, state: msg.state });
-        if (msg.position >= totalSlots) {
-          totalSlots = msg.position + 1;
-        }
-        if (msg.seq === mySeq && msg.state === 'checked') {
-          myChecked = true;
-        }
+        if (msg.position >= totalSlots) totalSlots = msg.position + 1;
+        if (msg.seq === mySeq && msg.state === 'checked') myChecked = true;
         render();
         break;
-      }
 
-      case 'position_update': {
+      case 'position_update':
         updatePosition(msg.position);
-        // Update position of user's own slot in the map
-        if (mySeq !== null && slots.has(mySeq)) {
-          slots.get(mySeq).position = msg.position;
-        }
+        if (mySeq !== null && slots.has(mySeq)) slots.get(mySeq).position = msg.position;
         render();
         break;
-      }
 
-      case 'left': {
+      case 'left':
         const s = slots.get(msg.seq);
         if (s) {
-          // Ghost briefly, then remove
           s.state = 'ghost';
           render();
-          setTimeout(() => {
-            slots.delete(msg.seq);
-            render();
-          }, 30000);
+          setTimeout(() => { slots.delete(msg.seq); render(); }, 30000);
         }
         departuresTotal = msg.departures_today;
         updateDepartures();
         break;
-      }
 
-      case 'check_ok': {
+      case 'check_ok':
         myChecked = true;
-        const s = slots.get(mySeq);
-        if (s) s.state = 'checked';
+        if (slots.has(mySeq)) slots.get(mySeq).state = 'checked';
         updatePosition(msg.position);
         showStatus('You have checked your box. The contest notes your participation.', 'positive');
         render();
         break;
-      }
 
-      case 'check_rejected': {
-        if (msg.reason === 'not_eligible') {
-          showStatus('It is not yet your turn. The box remains unavailable.', 'negative');
-        }
-        // Re-render to reset the checkbox visual
-        const s = slots.get(mySeq);
-        if (s) { /* state unchanged */ }
+      case 'check_rejected':
+        if (msg.reason === 'not_eligible') showStatus('It is not yet your turn. The box remains unavailable.', 'negative');
         render();
         break;
-      }
 
-      case 'winner': {
-        const dur = formatDuration(msg.duration_ms);
-        const pos = '#' + (msg.position + 1).toLocaleString();
-        showAnnouncement(
-          `A contestant at position ${pos} has checked their box after ${dur}. ` +
-          `They have been recorded. The line continues.`
-        );
-        if (msg.seq !== mySeq) {
-          showStatus('Someone ahead of you has finished. The line adjusts.', 'neutral');
-        }
-        break;
-      }
-
-      case 'pong':
+      case 'winner':
+        showAnnouncement(`A contestant at position #${msg.position + 1} has checked their box after ${formatDuration(msg.duration_ms)}.`);
+        if (msg.seq !== mySeq) showStatus('Someone ahead of you has finished. The line adjusts.', 'neutral');
         break;
 
-      default:
-        break;
+      case 'pong': break;
     }
   });
 
@@ -651,7 +571,6 @@
   ws.addEventListener('error', () => {
     showStatus('The connection encountered a difficulty.', 'negative');
   });
-
 })();
 </script>
 </body>
