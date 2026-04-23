@@ -49,6 +49,8 @@ channels:
               type: integer
             position:
               type: integer
+            waiting_position:
+              type: integer
       pong:
         payload:
           type: object
@@ -86,6 +88,8 @@ channels:
             type:
               const: position_update
             position:
+              type: integer
+            waiting_position:
               type: integer
       range_state:
         payload:

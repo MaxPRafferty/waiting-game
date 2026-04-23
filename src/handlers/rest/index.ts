@@ -12,7 +12,7 @@ export const joinHandler = async (req: Request, res: Response) => {
     const result = await queueWorker.join(token);
     return res.json({
       seq: result.client.seq,
-      position: result.mockPosition
+      position: result.absolutePosition
     });
   } catch (error) {
     console.error('Join error:', error);

@@ -13,6 +13,7 @@ export interface IQueue {
   remove(token: string): Promise<QueueClient | null>;
   get(token: string): Promise<QueueClient | null>;
   getPosition(token: string): Promise<number>;
+  getWaitingPosition(token: string): Promise<number>;
   isEligible(token: string): Promise<boolean>;
   check(token: string): Promise<{ success: boolean; seq: number; position: number; duration_ms: number }>;
   getRange(fromPos: number, toPos: number, offset: number, total: number): Promise<SlotSummary[]>;

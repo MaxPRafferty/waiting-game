@@ -262,7 +262,8 @@
   })();
 
   let mySeq = null;
-  let myPosition = null;
+  let myPosition = null; // Absolute
+  let myWaitingPosition = null; // Current place in waiting line
   let myChecked = false;
   let departuresTotal = 0;
   let totalSlots = 0;
@@ -478,24 +479,26 @@
   const NEGATIVE_COLORS = ['#ff5050', '#ff9900', '#ff00ff'];
   function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function updatePosition(pos) {
-    myPosition = pos;
+  function updatePosition(absPos, waitPos) {
+    myPosition = absPos;
+    myWaitingPosition = waitPos;
+
     if (myChecked) {
       $posNumber.textContent = '✓';
       $posNumber.style.color = 'var(--primary)';
       $posLabel.textContent = 'you checked your box.';
       showStatus('You have checked your box. The contest notes your participation.', 'positive');
       document.title = '✓ The Waiting Game';
-    } else if (pos === 0) {
+    } else if (waitPos === 0) {
       $posNumber.textContent = '#1';
       $posNumber.style.color = 'var(--secondary)';
       $posLabel.textContent = 'first in line';
       document.title = '#1 — The Waiting Game';
     } else {
-      $posNumber.textContent = '#' + (pos + 1).toLocaleString();
+      $posNumber.textContent = '#' + (waitPos + 1).toLocaleString();
       $posNumber.style.color = '';
       $posLabel.textContent = 'in line';
-      document.title = '#' + (pos + 1).toLocaleString() + ' — The Waiting Game';
+      document.title = '#' + (waitPos + 1).toLocaleString() + ' — The Waiting Game';
     }
   }
 
@@ -539,18 +542,17 @@
     switch (msg.type) {
       case 'joined':
         mySeq = msg.seq;
-        myPosition = msg.position;
         $connectingMsg.style.display = 'none';
         $stripContainer.style.display = 'block';
         viewportWidth = $strip.clientWidth || window.innerWidth - 64;
-        scrollOffset = Math.max(0, myPosition - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
-        updatePosition(msg.position);
+        scrollOffset = Math.max(0, msg.position - Math.floor((viewportWidth / SLOT_WIDTH) / 2));
+        updatePosition(msg.position, msg.waiting_position);
         startPingLoop();
         showStatus(
-          msg.position === 0
+          msg.waiting_position === 0
             ? 'You are first in line. It is your turn when you are ready.'
             : 'You are in line. The contest is aware of your presence.',
-          msg.position === 0 ? 'positive' : 'neutral'
+          msg.waiting_position === 0 ? 'positive' : 'neutral'
         );
         syncViewport(true);
         break;
@@ -574,8 +576,10 @@
         break;
 
       case 'position_update':
-        updatePosition(msg.position);
-        if (mySeq !== null && slots.has(mySeq)) slots.get(mySeq).position = msg.position;
+        updatePosition(msg.position, msg.waiting_position);
+        if (mySeq !== null && slots.has(mySeq)) {
+          slots.get(mySeq).position = msg.position;
+        }
         render();
         break;
 
@@ -593,7 +597,7 @@
       case 'check_ok':
         myChecked = true;
         if (slots.has(mySeq)) slots.get(mySeq).state = 'checked';
-        updatePosition(msg.position);
+        updatePosition(msg.position, 0); // They are effectively at 0 waiting position now
         showStatus('You have checked your box. The contest notes your participation.', 'positive');
         render();
         break;

@@ -41,13 +41,19 @@ export class MockQueue implements IQueue {
     return count;
   }
 
-  async isEligible(token: string): Promise<boolean> {
+  async getWaitingPosition(token: string): Promise<number> {
     const client = this.clients.get(token);
-    if (!client || client.checked) return false;
+    if (!client || client.checked) return -1;
+    let count = 0;
     for (const c of this.clients.values()) {
-      if (c.seq < client.seq && !c.checked) return false;
+      if (c.seq < client.seq && !c.checked) count++;
     }
-    return true;
+    return count;
+  }
+
+  async isEligible(token: string): Promise<boolean> {
+    const pos = await this.getWaitingPosition(token);
+    return pos === 0;
   }
 
   async check(token: string): Promise<{ success: boolean; seq: number; position: number; duration_ms: number }> {
@@ -67,7 +73,7 @@ export class MockQueue implements IQueue {
 
   async getRange(fromPos: number, toPos: number, offset: number, total: number): Promise<SlotSummary[]> {
     const summaries: SlotSummary[] = [];
-    const allClients = [...this.clients.values()].sort((a, b) => a.seq - b.seq);
+    const allClients = Array.from(this.clients.values()).sort((a, b) => a.seq - b.seq);
 
     for (let i = fromPos; i <= toPos; i++) {
       if (i < 0 || i >= total) continue;
@@ -97,7 +103,7 @@ export class MockQueue implements IQueue {
   }
 
   async getAllRealClients(): Promise<{ token: string; seq: number }[]> {
-    return [...this.clients.values()]
+    return Array.from(this.clients.values())
       .sort((a, b) => a.seq - b.seq)
       .map(c => ({ token: c.token, seq: c.seq }));
   }

@@ -17,19 +17,18 @@ export class QueueWorker {
 
   async join(token: string) {
     const client = await queue.add(token);
-    const pos = await queue.getPosition(token);
+    const absPos = await queue.getPosition(token);
+    const waitPos = await queue.getWaitingPosition(token);
     
-    // Ensure mockTotal is at least as large as the real queue + offset
     const size = await queue.size();
     if (this.mockTotal < this.MOCK_START_SIZE + size) {
       this.mockTotal = this.MOCK_START_SIZE + size;
     }
     
-    const mockPosition = this.MOCK_START_SIZE + pos;
-    
     return {
       client,
-      mockPosition,
+      absolutePosition: this.MOCK_START_SIZE + absPos,
+      waitingPosition: waitPos,
       total: this.mockTotal
     };
   }
@@ -47,7 +46,6 @@ export class QueueWorker {
   async subscribe(connectionId: string, fromPos: number, toPos: number) {
     const { slots, total } = await this.getViewport(fromPos, toPos);
     
-    // Find min/max sequence in this range
     let minSeq = Infinity;
     let maxSeq = -Infinity;
 
@@ -75,14 +73,13 @@ export class QueueWorker {
     const result = await queue.check(token);
     if (!result.success) return result;
 
-    const mockPos = this.MOCK_START_SIZE + result.position;
+    const absPos = this.MOCK_START_SIZE + result.position;
     
-    // Persist to leaderboard
-    await leaderboard.addWinner(result.seq, mockPos, result.duration_ms);
+    await leaderboard.addWinner(result.seq, absPos, result.duration_ms);
 
     return {
       ...result,
-      position: mockPos
+      position: absPos
     };
   }
 
@@ -114,10 +111,12 @@ export class QueueWorker {
     const clients = await queue.getAllRealClients();
     const updates = [];
     for (const client of clients) {
-      const pos = await queue.getPosition(client.token);
+      const absPos = await queue.getPosition(client.token);
+      const waitPos = await queue.getWaitingPosition(client.token);
       updates.push({
         token: client.token,
-        position: this.MOCK_START_SIZE + pos
+        absolutePosition: this.MOCK_START_SIZE + absPos,
+        waitingPosition: waitPos
       });
     }
     return updates;
@@ -138,18 +137,15 @@ export class QueueWorker {
   async getRandomActivity(): Promise<ServerMessage[]> {
     const messages: ServerMessage[] = [];
     
-    // No random mock activity in LIVE mode
     if (process.env.DEPENDENCY_MODE === 'LIVE') {
       return messages;
     }
 
-    // Mock Winner
     if (Math.random() < 0.2) {
       const mockPos = Math.floor(Math.random() * 50);
       const mockDuration = Math.floor(Math.random() * 3600_000);
       const seq = -1000 - mockPos;
       
-      // Also persist mock winners to leaderboard
       await leaderboard.addWinner(seq, mockPos, mockDuration);
 
       messages.push({ 
@@ -166,7 +162,6 @@ export class QueueWorker {
       });
     }
 
-    // Mock Departure
     if (Math.random() < 0.1) {
       const mockPos = Math.floor(Math.random() * this.mockTotal);
       const departuresToday = await statistics.incrementDepartures();
@@ -177,7 +172,6 @@ export class QueueWorker {
       });
     }
 
-    // Mock Arrival - Increment mockTotal
     for (let i = 0; i < 2; i++) {
       if (Math.random() < 0.75) {
         const position = this.mockTotal++;

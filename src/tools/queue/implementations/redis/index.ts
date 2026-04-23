@@ -5,6 +5,7 @@ import type { SlotSummary } from '../../../../types.js';
 export class RedisQueue implements IQueue {
   private redis: Redis;
   private readonly QUEUE_KEY = 'waiting_game:queue';
+  private readonly WAITING_QUEUE_KEY = 'waiting_game:waiting_queue';
   private readonly STATE_KEY = 'waiting_game:states';
   private readonly SEQ_KEY = 'waiting_game:seq_counter';
 
@@ -18,6 +19,7 @@ export class RedisQueue implements IQueue {
     
     await this.redis.pipeline()
       .zadd(this.QUEUE_KEY, seq, token)
+      .zadd(this.WAITING_QUEUE_KEY, seq, token)
       .hset(this.STATE_KEY, token, JSON.stringify({
         seq,
         joined_at: now,
@@ -37,6 +39,7 @@ export class RedisQueue implements IQueue {
     
     await this.redis.pipeline()
       .zrem(this.QUEUE_KEY, token)
+      .zrem(this.WAITING_QUEUE_KEY, token)
       .hdel(this.STATE_KEY, token)
       .exec();
 
@@ -54,11 +57,17 @@ export class RedisQueue implements IQueue {
     return rank ?? -1;
   }
 
+  async getWaitingPosition(token: string): Promise<number> {
+    const rank = await this.redis.zrank(this.WAITING_QUEUE_KEY, token);
+    return rank ?? -1;
+  }
+
   async isEligible(token: string): Promise<boolean> {
     const client = await this.get(token);
     if (!client || client.checked) return false;
 
-    const rank = await this.redis.zrank(this.QUEUE_KEY, token);
+    // Rank 0 in the WAITING queue is eligible
+    const rank = await this.redis.zrank(this.WAITING_QUEUE_KEY, token);
     return rank === 0;
   }
 
@@ -68,7 +77,7 @@ export class RedisQueue implements IQueue {
       return { success: false, seq: -1, position: -1, duration_ms: 0 };
     }
 
-    const rank = await this.redis.zrank(this.QUEUE_KEY, token);
+    const rank = await this.redis.zrank(this.WAITING_QUEUE_KEY, token);
     if (rank !== 0) {
       return { success: false, seq: -1, position: -1, duration_ms: 0 };
     }
@@ -76,17 +85,20 @@ export class RedisQueue implements IQueue {
     client.checked = true;
     const duration_ms = Date.now() - client.joined_at;
 
-    await this.redis.hset(this.STATE_KEY, token, JSON.stringify({
-      seq: client.seq,
-      joined_at: client.joined_at,
-      last_ping: Date.now(),
-      checked: true
-    }));
+    await this.redis.pipeline()
+      .zrem(this.WAITING_QUEUE_KEY, token)
+      .hset(this.STATE_KEY, token, JSON.stringify({
+        seq: client.seq,
+        joined_at: client.joined_at,
+        last_ping: Date.now(),
+        checked: true
+      }))
+      .exec();
 
     return {
       success: true,
       seq: client.seq,
-      position: 0,
+      position: await this.getPosition(token),
       duration_ms
     };
   }

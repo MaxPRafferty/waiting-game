@@ -44,7 +44,8 @@ export async function notifyPositionsBehind(seq: number) {
     if (targetWs) {
       send(targetWs, {
         type: 'position_update',
-        position: update.position,
+        position: update.absolutePosition,
+        waiting_position: update.waitingPosition,
       });
     }
   }

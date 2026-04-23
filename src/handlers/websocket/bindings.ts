@@ -1,4 +1,3 @@
-import { WebSocket } from 'ws';
 import { queueWorker } from '../../workers/queue/index.js';
 import type { ClientMessage } from '../../types.js';
 import { 
@@ -11,7 +10,7 @@ import {
 
 export interface WebSocketContext {
   token: string | null;
-  ws: WebSocket;
+  ws: any;
 }
 
 export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) => {
@@ -27,10 +26,11 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
       send(ws, {
         type: 'joined',
         seq: joinRes.client.seq,
-        position: joinRes.mockPosition,
+        position: joinRes.absolutePosition,
+        waiting_position: joinRes.waitingPosition,
       });
 
-      const viewport = await queueWorker.subscribe(ctx.token, joinRes.mockPosition - 30, joinRes.mockPosition + 30);
+      const viewport = await queueWorker.subscribe(ctx.token, joinRes.absolutePosition - 30, joinRes.absolutePosition + 30);
       send(ws, {
         type: 'range_state',
         slots: viewport.slots,
@@ -40,7 +40,7 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
       await broadcastToSubscribers(joinRes.client.seq, {
         type: 'range_update',
         seq: joinRes.client.seq,
-        position: joinRes.mockPosition,
+        position: joinRes.absolutePosition,
         state: 'waiting',
       });
       break;
@@ -74,6 +74,9 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
         position: checkRes.position, 
         state: 'checked' 
       });
+
+      // Notify others that the waiting line has moved
+      await notifyPositionsBehind(checkRes.seq);
       break;
     }
 
