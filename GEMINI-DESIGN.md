@@ -55,6 +55,9 @@ Implemented via **Trystero** (WebRTC over BitTorrent trackers).
 - **`badges`**: `id`, `name`, `description`, `image_url`.
 - **`user_badges`**: `user_id`, `badge_id`, `awarded_at`.
 - **`follows`**: `user_id`, `target_token`, `target_name`, `created_at`.
+- **`seasons`**: `id`, `name`, `start_at`, `end_at`.
+- **`superlatives`**: `id`, `name`, `description`.
+- **`season_superlatives`**: `season_id`, `superlative_id`, `user_id`, `awarded_at`.
 
 ---
 
