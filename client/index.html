@@ -355,12 +355,15 @@
       $posNumber.textContent = '✓';
       $posLabel.textContent = 'you checked your box.';
       $status.textContent = 'You have checked your box. The contest notes your participation.';
+      document.title = '✓ The Waiting Game';
     } else if (pos === 0) {
       $posNumber.textContent = '#1';
       $posLabel.textContent = 'first in line';
+      document.title = '#1 — The Waiting Game';
     } else {
       $posNumber.textContent = '#' + (pos + 1).toLocaleString();
       $posLabel.textContent = 'in line';
+      document.title = '#' + (pos + 1).toLocaleString() + ' — The Waiting Game';
     }
   }
 
