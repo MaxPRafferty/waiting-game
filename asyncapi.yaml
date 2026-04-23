@@ -1,0 +1,108 @@
+asyncapi: 3.0.0
+info:
+  title: The Waiting Game WebSocket API
+  version: 0.1.0
+  description: WebSocket messages for the sequential checkbox waiting game.
+channels:
+  /:
+    address: /
+    messages:
+      join:
+        payload:
+          type: object
+          properties:
+            type:
+              const: join
+            token:
+              type: string
+      ping:
+        payload:
+          type: object
+          properties:
+            type:
+              const: ping
+      check:
+        payload:
+          type: object
+          properties:
+            type:
+              const: check
+            token:
+              type: string
+      viewport_subscribe:
+        payload:
+          type: object
+          properties:
+            type:
+              const: viewport_subscribe
+            from_position:
+              type: integer
+            to_position:
+              type: integer
+      joined:
+        payload:
+          type: object
+          properties:
+            type:
+              const: joined
+            seq:
+              type: integer
+            position:
+              type: integer
+      pong:
+        payload:
+          type: object
+          properties:
+            type:
+              const: pong
+      check_ok:
+        payload:
+          type: object
+          properties:
+            type:
+              const: check_ok
+            position:
+              type: integer
+            duration_ms:
+              type: integer
+      winner:
+        payload:
+          type: object
+          properties:
+            type:
+              const: winner
+            $ref: 'schemas.yaml#/components/schemas/WinnerData'
+      left:
+        payload:
+          type: object
+          properties:
+            type:
+              const: left
+            $ref: 'schemas.yaml#/components/schemas/DepartureData'
+      position_update:
+        payload:
+          type: object
+          properties:
+            type:
+              const: position_update
+            position:
+              type: integer
+      range_state:
+        payload:
+          type: object
+          properties:
+            type:
+              const: range_state
+            slots:
+              type: array
+              items:
+                $ref: 'schemas.yaml#/components/schemas/SlotSummary'
+            total:
+              type: integer
+      range_update:
+        payload:
+          type: object
+          properties:
+            type:
+              const: range_update
+            $ref: 'schemas.yaml#/components/schemas/SlotSummary'

@@ -30,7 +30,9 @@ Workers contain the core business logic. They "use" one or more Tools to perform
 Handlers are the entry points for the system (REST endpoints or WebSocket message types).
 - **Rule**: Handlers are 1:1 with the interface they serve.
 - **Responsibility**: Validate input, invoke Workers, and transform results into sanitized output.
-- **OpenAPI**: REST validation and return values are defined by an OpenAPI specification. This specification generates the binding of routes to handlers consumed at startup.
+- **REST (OpenAPI)**: REST validation and return values are defined by an `openapi.yaml` specification. This specification generates the binding of routes to handlers.
+- **WebSockets (AsyncAPI)**: WebSocket messages and capabilities are defined by an `asyncapi.yaml` specification. This specification defines the message schemas and generates the binding of message types to handlers in a dedicated `src/handlers/websocket/bindings.ts` (or similar).
+- **Shared Schemas**: To avoid duplication, common entities (e.g., `SlotSummary`) MUST be defined in a shared `schemas.yaml` file and referenced by both OpenAPI and AsyncAPI specifications.
 
 ## Operational Constraints
 - The backend MUST be able to operate entirely without external dependencies when `DEPENDENCY_MODE=MOCK`.

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: The Waiting Game API
+  title: The Waiting Game REST API
   version: 0.1.0
   description: API for the sequential checkbox waiting game.
 paths:
@@ -81,18 +81,6 @@ paths:
                   slots:
                     type: array
                     items:
-                      $ref: '#/components/schemas/SlotSummary'
+                      $ref: 'schemas.yaml#/components/schemas/SlotSummary'
                   total:
                     type: integer
-components:
-  schemas:
-    SlotSummary:
-      type: object
-      properties:
-        seq:
-          type: integer
-        position:
-          type: integer
-        state:
-          type: string
-          enum: [waiting, checked]

@@ -1,0 +1,28 @@
+components:
+  schemas:
+    SlotSummary:
+      type: object
+      properties:
+        seq:
+          type: integer
+        position:
+          type: integer
+        state:
+          type: string
+          enum: [waiting, checked]
+    WinnerData:
+      type: object
+      properties:
+        seq:
+          type: integer
+        position:
+          type: integer
+        duration_ms:
+          type: integer
+    DepartureData:
+      type: object
+      properties:
+        seq:
+          type: integer
+        departures_today:
+          type: integer
