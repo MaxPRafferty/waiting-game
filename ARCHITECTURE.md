@@ -36,3 +36,7 @@ Handlers are the entry points for the system (REST endpoints or WebSocket messag
 
 ## Operational Constraints
 - The backend MUST be able to operate entirely without external dependencies when `DEPENDENCY_MODE=MOCK`.
+
+## Current Tool Roster
+
+The active tools after the 2026-04-24 scope reset are `queue`, `subscription`, `leaderboard`, `statistics`, and `imageGenerator`. The `auth` and `storage` tools (previously used for Supabase-backed user accounts) are slated for removal as part of Weekend 7 remediation. See `DESIGN.md` §4 for the authoritative list and §5 for the rationale.
