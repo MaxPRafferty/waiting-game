@@ -12,13 +12,25 @@ export class QueueWorker {
   private MOCK_START_SIZE: number;
   private mockTotal: number;
   private STALE_THRESHOLD_MS = 12_000;
+  private mockSeeded = false;
+  private static MOCK_SEED_COUNT = 3;
 
   constructor() {
     this.MOCK_START_SIZE = process.env.DEPENDENCY_MODE === 'LIVE' ? 0 : 500_000;
     this.mockTotal = this.MOCK_START_SIZE;
   }
 
+  private async seedMockQueue() {
+    if (this.mockSeeded || process.env.DEPENDENCY_MODE === 'LIVE') return;
+    this.mockSeeded = true;
+    for (let i = 0; i < QueueWorker.MOCK_SEED_COUNT; i++) {
+      await queue.add(`__mock_${i}`);
+      await queue.setVisibility(`__mock_${i}`, false);
+    }
+  }
+
   async join(token: string) {
+    await this.seedMockQueue();
     const client = await queue.add(token);
     const absPos = await queue.getPosition(token);
     const waitPos = await queue.getWaitingPosition(token);
@@ -118,11 +130,13 @@ export class QueueWorker {
 
   async getPositionsBehind(_seq: number) {
     const snapshot = await queue.getPositionSnapshot();
-    return snapshot.map(s => ({
-      token: s.token,
-      absolutePosition: this.MOCK_START_SIZE + s.absolutePosition,
-      waitingPosition: s.waitingPosition,
-    }));
+    return snapshot
+      .filter(s => !s.token.startsWith('__mock_'))
+      .map(s => ({
+        token: s.token,
+        absolutePosition: this.MOCK_START_SIZE + s.absolutePosition,
+        waitingPosition: s.waitingPosition,
+      }));
   }
 
   async getDeparturesToday() {
@@ -169,24 +183,29 @@ export class QueueWorker {
       return messages;
     }
 
-    if (Math.random() < 0.2) {
-      const mockPos = Math.floor(Math.random() * 50);
-      const mockDuration = Math.floor(Math.random() * 3600_000);
-      const seq = -1000 - mockPos;
+    if (Math.random() < 0.3) {
+      const clients = await queue.getAllRealClients();
+      const mockClient = clients.find(c => c.token.startsWith('__mock_'));
+      if (mockClient) {
+        const result = await queue.check(mockClient.token);
+        if (result.success) {
+          const absPos = this.MOCK_START_SIZE + result.position;
+          await leaderboard.addWinner(result.seq, absPos, result.duration_ms);
+          await endurance.addEntry(result.seq, result.duration_ms);
 
-      await leaderboard.addWinner(seq, mockPos, mockDuration);
-
-      messages.push({
-        type: 'winner',
-        seq,
-        duration_ms: mockDuration
-      });
-      messages.push({
-        type: 'range_update',
-        seq,
-        position: mockPos,
-        state: 'checked'
-      });
+          messages.push({
+            type: 'winner',
+            seq: result.seq,
+            duration_ms: result.duration_ms
+          });
+          messages.push({
+            type: 'range_update',
+            seq: result.seq,
+            position: absPos,
+            state: 'checked'
+          });
+        }
+      }
     }
 
     if (Math.random() < 0.1) {
