@@ -51,19 +51,19 @@ Reflects actual state after the 2026-04-24 scope reset + `/plan-eng-review`. The
 
 ### Weekend 7 — Scope cleanup + P2P chat polish
 **Deletion order (respects import graph):**
-- [ ] (1) Remove auth/social REST handlers from `src/handlers/rest/index.ts`
-- [ ] (2) Remove auth/social bindings from `src/routes.ts`
-- [ ] (3) Remove `nameCheckbox` method + `storage` import from `src/workers/queue/index.ts`
-- [ ] (4) Delete `src/workers/user/` and `src/workers/social/`
-- [ ] (5) Delete `src/tools/auth/` and `src/tools/storage/`
-- [ ] (6) Remove `Season` + `Superlative` from `schemas.yaml`; matching paths from `openapi.yaml`
-- [ ] (7) Remove `@supabase/supabase-js` from `package.json`; update lockfile
-- [ ] (8) Run `npm run typecheck && npm test` — must be green before commit
+- [x] (1) Remove auth/social REST handlers from `src/handlers/rest/index.ts`
+- [x] (2) Remove auth/social bindings from `src/routes.ts`
+- [x] (3) Remove `nameCheckbox` method + `storage` import from `src/workers/queue/index.ts`
+- [x] (4) Delete `src/workers/user/` and `src/workers/social/`
+- [x] (5) Delete `src/tools/auth/` and `src/tools/storage/`
+- [x] (6) Remove `Season` + `Superlative` from `schemas.yaml`; matching paths from `openapi.yaml`
+- [x] (7) Remove `@supabase/supabase-js` from `package.json`; update lockfile
+- [x] (8) Run `npm run typecheck && npm test` — must be green before commit
 
 **P2P chat polish:**
-- [ ] Trystero room-switch on 100-slot boundary: unit test + 2-browser manual test
-- [ ] ICE-failure fallback: show "Chat unavailable in this neighborhood" status
-- [ ] Write `docs/p2p-chat.md` with NAT/ICE behavior
+- [ ] Trystero room-switch on 100-slot boundary: 2-browser manual test
+- [x] ICE-failure fallback: show "Chat unavailable in this neighborhood" status
+- [x] Write `docs/p2p-chat.md` with NAT/ICE behavior
 
 ### Weekend 6 — Deploy + hardening
 - [ ] `fly launch` + `fly redis create` colocated; set secrets

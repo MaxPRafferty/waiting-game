@@ -957,6 +957,10 @@
       $chatPanel.style.display = 'flex';
     } catch (err) {
       console.warn('[P2P] Failed to initialize Trystero:', err);
+      $chatLog.innerHTML = `<div class="chat-msg"><em>Chat unavailable in this neighborhood</em></div>`;
+      $chatInput.disabled = true;
+      $chatInput.placeholder = 'Chat unavailable';
+      $chatPanel.style.display = 'flex';
     }
   }
 

@@ -4,7 +4,6 @@ import { statistics } from '../../tools/statistics/index.js';
 import { leaderboard } from '../../tools/leaderboard/index.js';
 import { imageGenerator } from '../../tools/imageGenerator/index.js';
 import { endurance } from '../../tools/endurance/index.js';
-import { storage } from '../../tools/storage/index.js';
 import type { SubscriptionCallback } from '../../tools/subscription/interface.js';
 import type { ServerMessage } from '../../types.js';
 
@@ -153,27 +152,6 @@ export class QueueWorker {
 
   async generateOgImage(seq: number): Promise<Buffer> {
     return await imageGenerator.generate(seq);
-  }
-
-  async nameCheckbox(userId: string, token: string, name: string) {
-    const NAMED_COLLECTION = 'named_checkboxes';
-
-    const allNamed = await storage.list(NAMED_COLLECTION);
-    for (const nc of allNamed) {
-      if (nc.user_id === userId && nc.is_active) {
-        await storage.save(NAMED_COLLECTION, nc.id, { ...nc, is_active: false });
-      }
-    }
-
-    const id = crypto.randomUUID();
-    await storage.save(NAMED_COLLECTION, id, {
-      id,
-      user_id: userId,
-      token,
-      name,
-      is_active: true,
-      created_at: new Date().toISOString()
-    });
   }
 
   async getRandomActivity(): Promise<ServerMessage[]> {

@@ -35,13 +35,6 @@ vi.mock('../src/tools/endurance/index.js', () => ({
   },
 }));
 
-vi.mock('../src/tools/storage/index.js', () => ({
-  storage: {
-    list: vi.fn().mockResolvedValue([]),
-    save: vi.fn().mockResolvedValue(undefined),
-  },
-}));
-
 import { QueueWorker } from '../src/workers/queue/index.js';
 
 describe('QueueWorker', () => {

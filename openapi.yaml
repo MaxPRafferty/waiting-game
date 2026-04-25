@@ -4,179 +4,6 @@ info:
   version: 0.1.0
   description: API for the sequential checkbox waiting game.
 paths:
-  /signup:
-    post:
-      summary: Register a new user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                email:
-                  type: string
-                password:
-                  type: string
-      responses:
-        '200':
-          description: Successfully registered
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user:
-                    $ref: 'schemas.yaml#/components/schemas/User'
-                  token:
-                    type: string
-  /signin:
-    post:
-      summary: Sign in a user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                password:
-                  type: string
-      responses:
-        '200':
-          description: Successfully signed in
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user:
-                    $ref: 'schemas.yaml#/components/schemas/User'
-                  token:
-                    type: string
-  /auth/otp/send:
-    post:
-      summary: Send an OTP or Magic Link
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                phone:
-                  type: string
-      responses:
-        '200':
-          description: Successfully sent
-  /auth/otp/verify:
-    post:
-      summary: Verify an OTP
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                phone:
-                  type: string
-                token:
-                  type: string
-                type:
-                  type: string
-                  enum: [email, sms, magiclink]
-      responses:
-        '200':
-          description: Successfully verified
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user:
-                    $ref: 'schemas.yaml#/components/schemas/User'
-                  token:
-                    type: string
-  /checkbox/name:
-    post:
-      summary: Name your current live checkbox
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
-                name:
-                  type: string
-      responses:
-        '200':
-          description: Successfully named
-  /user/badges:
-    get:
-      summary: Get all badges for the current user
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  badges:
-                    type: array
-                    items:
-                      $ref: 'schemas.yaml#/components/schemas/Badge'
-  /follow:
-    post:
-      summary: Follow a checkbox
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                target_token:
-                  type: string
-                target_name:
-                  type: string
-      responses:
-        '200':
-          description: Successfully followed
-    get:
-      summary: List all followed checkboxes
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  follows:
-                    type: array
-                    items:
-                      $ref: 'schemas.yaml#/components/schemas/Follow'
   /join:
     post:
       summary: Join the line
@@ -271,12 +98,40 @@ paths:
                   winners:
                     type: array
                     items:
-                      $ref: '#/components/schemas/WinnerEntry'
+                      $ref: 'schemas.yaml#/components/schemas/WinnerData'
+  /activity:
+    get:
+      summary: Get recent activity
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activity:
+                    type: array
+                    items:
+                      $ref: 'schemas.yaml#/components/schemas/WinnerData'
+  /endurance:
+    get:
+      summary: Get endurance hall of fame
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
   /og-image:
     get:
-      summary: Get a dynamic OG image for a position
+      summary: Get a dynamic OG image for a sequence number
       parameters:
-        - name: position
+        - name: seq
           in: query
           required: true
           schema:
@@ -289,12 +144,3 @@ paths:
               schema:
                 type: string
                 format: binary
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  schemas:
-    WinnerEntry:
-      $ref: 'schemas.yaml#/components/schemas/WinnerEntry'
