@@ -366,6 +366,7 @@ button {
 }
 
 .strip {
+  min-height: 65px;
   position: relative;
   overflow: hidden;
 }
