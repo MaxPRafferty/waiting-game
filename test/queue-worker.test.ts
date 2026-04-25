@@ -152,7 +152,6 @@ describe('QueueWorker', () => {
       await worker.join('token-a');
       await worker.subscribe('token-a', 0, 100);
       await worker.leave('token-a');
-      // After leave, subscription should be cleaned up — no error on re-unsubscribe
       await worker.unsubscribe('token-a');
     });
 
@@ -168,9 +167,7 @@ describe('QueueWorker', () => {
   describe('cleanup (eviction)', () => {
     it('evicts clients that have not pinged within threshold', async () => {
       await worker.join('stale');
-      // Simulate stale by waiting — use a very short threshold
       const evicted = await worker.cleanup();
-      // With 12s threshold and fresh join, nothing should be evicted
       expect(evicted).toHaveLength(0);
     });
 
@@ -182,14 +179,11 @@ describe('QueueWorker', () => {
     });
 
     it('evicts stale clients and increments departures', async () => {
-      // Access the mock queue directly to manipulate last_ping
       const qMod = await import('../src/tools/queue/index.js') as any;
       const mockQueue = qMod.queue as MockQueue;
 
       await worker.join('stale');
-      // Manually set last_ping to way in the past
-      const clients = await mockQueue.getAllRealClients();
-      const client = await mockQueue.get(clients[0].token);
+      const client = await mockQueue.get('stale');
       if (client) {
         client.last_ping = Date.now() - 60_000;
       }
@@ -275,7 +269,6 @@ describe('QueueWorker', () => {
       await worker.join('viewer');
       await worker.subscribe('viewer', 0, 100);
       await worker.subscribe('viewer', 200, 300);
-      // The second subscribe should have replaced the first — no duplicate buckets
       await worker.unsubscribe('viewer');
     });
   });
@@ -322,6 +315,131 @@ describe('QueueWorker', () => {
 
       const leaders = await worker.getLeaderboard(2);
       expect(leaders).toHaveLength(2);
+    });
+  });
+
+  describe('visibility', () => {
+    it('hidden client is not evicted after going stale', async () => {
+      const qMod = await import('../src/tools/queue/index.js') as any;
+      const mockQueue = qMod.queue as MockQueue;
+
+      await worker.join('mobile-user');
+      await worker.setVisibility('mobile-user', false);
+
+      const client = await mockQueue.get('mobile-user');
+      if (client) {
+        client.last_ping = Date.now() - 60_000;
+      }
+
+      const evicted = await worker.cleanup();
+      expect(evicted).toHaveLength(0);
+    });
+
+    it('revealed client gets fresh ping window', async () => {
+      const qMod = await import('../src/tools/queue/index.js') as any;
+      const mockQueue = qMod.queue as MockQueue;
+
+      await worker.join('mobile-user');
+      await worker.setVisibility('mobile-user', false);
+
+      const client = await mockQueue.get('mobile-user');
+      if (client) {
+        client.last_ping = Date.now() - 60_000;
+      }
+
+      await worker.setVisibility('mobile-user', true);
+
+      const evicted = await worker.cleanup();
+      expect(evicted).toHaveLength(0);
+    });
+
+    it('visible stale client is evicted', async () => {
+      const qMod = await import('../src/tools/queue/index.js') as any;
+      const mockQueue = qMod.queue as MockQueue;
+
+      await worker.join('desktop-user');
+      // is_visible defaults to true
+
+      const client = await mockQueue.get('desktop-user');
+      if (client) {
+        client.last_ping = Date.now() - 60_000;
+      }
+
+      const evicted = await worker.cleanup();
+      expect(evicted).toHaveLength(1);
+      expect(evicted[0].token).toBe('desktop-user');
+    });
+  });
+
+  describe('publishToSubscribers', () => {
+    it('delivers message to subscribed connections', async () => {
+      const received: string[] = [];
+      const callback = (msg: string) => received.push(msg);
+
+      await worker.join('viewer');
+      await worker.subscribe('viewer', 500_000, 500_010, callback);
+
+      const joinRes = await worker.join('new-client');
+      await worker.publishToSubscribers(joinRes.client.seq, {
+        type: 'range_update',
+        seq: joinRes.client.seq,
+        position: joinRes.absolutePosition,
+        state: 'waiting',
+      });
+
+      expect(received).toHaveLength(1);
+      const parsed = JSON.parse(received[0]);
+      expect(parsed.type).toBe('range_update');
+    });
+
+    it('does not deliver to unsubscribed connections', async () => {
+      const received: string[] = [];
+      const callback = (msg: string) => received.push(msg);
+
+      await worker.join('viewer');
+      await worker.subscribe('viewer', 500_000, 500_010, callback);
+      await worker.unsubscribe('viewer');
+
+      await worker.publishToSubscribers(0, {
+        type: 'range_update',
+        seq: 0,
+        position: 500_000,
+        state: 'waiting',
+      });
+
+      expect(received).toHaveLength(0);
+    });
+  });
+
+  describe('getPositionsBehind (N+1 fix)', () => {
+    it('computes positions from a single snapshot', async () => {
+      await worker.join('a');
+      await worker.join('b');
+      await worker.join('c');
+
+      const positions = await worker.getPositionsBehind(0);
+      expect(positions).toHaveLength(3);
+      expect(positions[0].token).toBe('a');
+      expect(positions[1].token).toBe('b');
+      expect(positions[2].token).toBe('c');
+      expect(positions[0].absolutePosition).toBeLessThan(positions[1].absolutePosition);
+      expect(positions[1].absolutePosition).toBeLessThan(positions[2].absolutePosition);
+    });
+
+    it('waiting positions update after a check', async () => {
+      await worker.join('a');
+      await worker.join('b');
+      await worker.join('c');
+      await worker.check('a');
+
+      const positions = await worker.getPositionsBehind(0);
+      const aPos = positions.find(p => p.token === 'a')!;
+      const bPos = positions.find(p => p.token === 'b')!;
+      const cPos = positions.find(p => p.token === 'c')!;
+
+      expect(aPos.waitingPosition).toBe(-1);
+      expect(bPos.waitingPosition).toBe(0);
+      expect(cPos.waitingPosition).toBe(1);
     });
   });
 });

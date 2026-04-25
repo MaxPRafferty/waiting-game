@@ -4,6 +4,7 @@ import { statistics } from '../../tools/statistics/index.js';
 import { leaderboard } from '../../tools/leaderboard/index.js';
 import { imageGenerator } from '../../tools/imageGenerator/index.js';
 import { storage } from '../../tools/storage/index.js';
+import type { SubscriptionCallback } from '../../tools/subscription/interface.js';
 import type { ServerMessage } from '../../types.js';
 
 export class QueueWorker {
@@ -20,12 +21,12 @@ export class QueueWorker {
     const client = await queue.add(token);
     const absPos = await queue.getPosition(token);
     const waitPos = await queue.getWaitingPosition(token);
-    
+
     const size = await queue.size();
     if (this.mockTotal < this.MOCK_START_SIZE + size) {
       this.mockTotal = this.MOCK_START_SIZE + size;
     }
-    
+
     return {
       client,
       absolutePosition: this.MOCK_START_SIZE + absPos,
@@ -44,9 +45,9 @@ export class QueueWorker {
     return null;
   }
 
-  async subscribe(connectionId: string, fromPos: number, toPos: number) {
+  async subscribe(connectionId: string, fromPos: number, toPos: number, onMessage?: SubscriptionCallback) {
     const { slots, total } = await this.getViewport(fromPos, toPos);
-    
+
     let minSeq = Infinity;
     let maxSeq = -Infinity;
 
@@ -56,7 +57,8 @@ export class QueueWorker {
     }
 
     if (minSeq !== Infinity && maxSeq !== -Infinity) {
-      await subscription.subscribe(connectionId, minSeq, maxSeq);
+      const callback = onMessage ?? (() => {});
+      await subscription.subscribe(connectionId, minSeq, maxSeq, callback);
     }
 
     return { slots, total };
@@ -66,8 +68,8 @@ export class QueueWorker {
     await subscription.unsubscribe(connectionId);
   }
 
-  async getSubscribers(seq: number) {
-    return await subscription.getSubscribers(seq);
+  async publishToSubscribers(seq: number, msg: ServerMessage) {
+    await subscription.publish(seq, JSON.stringify(msg));
   }
 
   async check(token: string) {
@@ -75,7 +77,7 @@ export class QueueWorker {
     if (!result.success) return result;
 
     const absPos = this.MOCK_START_SIZE + result.position;
-    
+
     await leaderboard.addWinner(result.seq, absPos, result.duration_ms);
 
     return {
@@ -88,13 +90,17 @@ export class QueueWorker {
     const size = await queue.size();
     const realTotal = this.MOCK_START_SIZE + size;
     if (this.mockTotal < realTotal) this.mockTotal = realTotal;
-    
+
     const slots = await queue.getRange(from, to, this.MOCK_START_SIZE, this.mockTotal);
     return { slots, total: this.mockTotal };
   }
 
   async touch(token: string) {
     await queue.touch(token);
+  }
+
+  async setVisibility(token: string, visible: boolean) {
+    await queue.setVisibility(token, visible);
   }
 
   async cleanup() {
@@ -109,18 +115,12 @@ export class QueueWorker {
   }
 
   async getPositionsBehind(_seq: number) {
-    const clients = await queue.getAllRealClients();
-    const updates = [];
-    for (const client of clients) {
-      const absPos = await queue.getPosition(client.token);
-      const waitPos = await queue.getWaitingPosition(client.token);
-      updates.push({
-        token: client.token,
-        absolutePosition: this.MOCK_START_SIZE + absPos,
-        waitingPosition: waitPos
-      });
-    }
-    return updates;
+    const snapshot = await queue.getPositionSnapshot();
+    return snapshot.map(s => ({
+      token: s.token,
+      absolutePosition: this.MOCK_START_SIZE + s.absolutePosition,
+      waitingPosition: s.waitingPosition,
+    }));
   }
 
   async getDeparturesToday() {
@@ -137,8 +137,7 @@ export class QueueWorker {
 
   async nameCheckbox(userId: string, token: string, name: string) {
     const NAMED_COLLECTION = 'named_checkboxes';
-    
-    // Mark previous active checkboxes for this user as inactive
+
     const allNamed = await storage.list(NAMED_COLLECTION);
     for (const nc of allNamed) {
       if (nc.user_id === userId && nc.is_active) {
@@ -159,7 +158,7 @@ export class QueueWorker {
 
   async getRandomActivity(): Promise<ServerMessage[]> {
     const messages: ServerMessage[] = [];
-    
+
     if (process.env.DEPENDENCY_MODE === 'LIVE') {
       return messages;
     }
@@ -168,14 +167,14 @@ export class QueueWorker {
       const mockPos = Math.floor(Math.random() * 50);
       const mockDuration = Math.floor(Math.random() * 3600_000);
       const seq = -1000 - mockPos;
-      
+
       await leaderboard.addWinner(seq, mockPos, mockDuration);
 
-      messages.push({ 
-        type: 'winner', 
-        seq, 
-        position: mockPos, 
-        duration_ms: mockDuration 
+      messages.push({
+        type: 'winner',
+        seq,
+        position: mockPos,
+        duration_ms: mockDuration
       });
       messages.push({
         type: 'range_update',
@@ -188,10 +187,10 @@ export class QueueWorker {
     if (Math.random() < 0.1) {
       const mockPos = Math.floor(Math.random() * this.mockTotal);
       const departuresToday = await statistics.incrementDepartures();
-      messages.push({ 
-        type: 'left', 
-        seq: -1000 - mockPos, 
-        departures_today: departuresToday 
+      messages.push({
+        type: 'left',
+        seq: -1000 - mockPos,
+        departures_today: departuresToday
       });
     }
 

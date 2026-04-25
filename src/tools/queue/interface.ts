@@ -6,6 +6,7 @@ export interface QueueClient {
   checked: boolean;
   joined_at: number;
   last_ping: number;
+  is_visible: boolean;
 }
 
 export interface IQueue {
@@ -20,5 +21,7 @@ export interface IQueue {
   size(): Promise<number>;
   getAllRealClients(): Promise<{token: string, seq: number}[]>;
   touch(token: string): Promise<void>;
+  setVisibility(token: string, visible: boolean): Promise<void>;
   evictStale(thresholdMs: number): Promise<QueueClient[]>;
+  getPositionSnapshot(): Promise<Array<{token: string, absolutePosition: number, waitingPosition: number}>>;
 }

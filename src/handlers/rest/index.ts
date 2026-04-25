@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { queueWorker } from '../../workers/queue/index.js';
 import { userWorker } from '../../workers/user/index.js';
 import { badgeWorker, followWorker } from '../../workers/social/index.js';
-import { broadcastToAll, broadcastToSubscribers, notifyPositionsBehind } from '../websocket/shared.js';
+import { broadcastToAll, publishToSubscribers, notifyPositionsBehind } from '../websocket/shared.js';
 
 const authenticate = async (req: Request) => {
   const authHeader = req.headers.authorization;
@@ -146,11 +146,11 @@ export const checkHandler = async (req: Request, res: Response) => {
       duration_ms: result.duration_ms 
     });
 
-    await broadcastToSubscribers(result.seq, { 
-      type: 'range_update', 
-      seq: result.seq, 
-      position: result.position, 
-      state: 'checked' 
+    await publishToSubscribers(result.seq, {
+      type: 'range_update',
+      seq: result.seq,
+      position: result.position,
+      state: 'checked'
     });
 
     await notifyPositionsBehind(result.seq);

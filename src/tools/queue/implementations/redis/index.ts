@@ -16,7 +16,7 @@ export class RedisQueue implements IQueue {
   async add(token: string): Promise<QueueClient> {
     const seq = await this.redis.incr(this.SEQ_KEY);
     const now = Date.now();
-    
+
     await this.redis.pipeline()
       .zadd(this.QUEUE_KEY, seq, token)
       .zadd(this.WAITING_QUEUE_KEY, seq, token)
@@ -24,11 +24,12 @@ export class RedisQueue implements IQueue {
         seq,
         joined_at: now,
         last_ping: now,
-        checked: false
+        checked: false,
+        is_visible: true
       }))
       .exec();
 
-    return { seq, token, checked: false, joined_at: now, last_ping: now };
+    return { seq, token, checked: false, joined_at: now, last_ping: now, is_visible: true };
   }
 
   async remove(token: string): Promise<QueueClient | null> {
@@ -36,7 +37,7 @@ export class RedisQueue implements IQueue {
     if (!stateStr) return null;
 
     const state = JSON.parse(stateStr);
-    
+
     await this.redis.pipeline()
       .zrem(this.QUEUE_KEY, token)
       .zrem(this.WAITING_QUEUE_KEY, token)
@@ -66,7 +67,6 @@ export class RedisQueue implements IQueue {
     const client = await this.get(token);
     if (!client || client.checked) return false;
 
-    // Rank 0 in the WAITING queue is eligible
     const rank = await this.redis.zrank(this.WAITING_QUEUE_KEY, token);
     return rank === 0;
   }
@@ -91,7 +91,8 @@ export class RedisQueue implements IQueue {
         seq: client.seq,
         joined_at: client.joined_at,
         last_ping: Date.now(),
-        checked: true
+        checked: true,
+        is_visible: client.is_visible
       }))
       .exec();
 
@@ -107,7 +108,7 @@ export class RedisQueue implements IQueue {
     const summaries: SlotSummary[] = [];
     const start = Math.max(0, fromPos - offset);
     const end = Math.max(0, toPos - offset);
-    
+
     const tokens = await this.redis.zrange(this.QUEUE_KEY, start, end);
     const states = tokens.length > 0 ? await this.redis.hmget(this.STATE_KEY, ...tokens) : [];
 
@@ -163,6 +164,16 @@ export class RedisQueue implements IQueue {
     await this.redis.hset(this.STATE_KEY, token, JSON.stringify(state));
   }
 
+  async setVisibility(token: string, visible: boolean): Promise<void> {
+    const stateStr = await this.redis.hget(this.STATE_KEY, token);
+    if (!stateStr) return;
+
+    const state = JSON.parse(stateStr);
+    state.is_visible = visible;
+    if (visible) state.last_ping = Date.now();
+    await this.redis.hset(this.STATE_KEY, token, JSON.stringify(state));
+  }
+
   async evictStale(thresholdMs: number): Promise<QueueClient[]> {
     const now = Date.now();
     const allStates = await this.redis.hgetall(this.STATE_KEY);
@@ -170,12 +181,27 @@ export class RedisQueue implements IQueue {
 
     for (const [token, stateStr] of Object.entries(allStates)) {
       const state = JSON.parse(stateStr);
-      if (!state.checked && now - state.last_ping > thresholdMs) {
+      if (!state.checked && state.is_visible && now - state.last_ping > thresholdMs) {
         await this.remove(token);
         evicted.push({ token, ...state });
       }
     }
 
     return evicted;
+  }
+
+  async getPositionSnapshot(): Promise<Array<{token: string, absolutePosition: number, waitingPosition: number}>> {
+    const [allTokens, waitingTokens] = await Promise.all([
+      this.redis.zrange(this.QUEUE_KEY, 0, -1),
+      this.redis.zrange(this.WAITING_QUEUE_KEY, 0, -1),
+    ]);
+
+    const waitingRankMap = new Map(waitingTokens.map((t, i) => [t, i]));
+
+    return allTokens.map((token, i) => ({
+      token,
+      absolutePosition: i,
+      waitingPosition: waitingRankMap.get(token) ?? -1,
+    }));
   }
 }

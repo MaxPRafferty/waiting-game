@@ -1,6 +1,10 @@
 import { InMemorySubscription } from './implementations/mock/index.js';
+import { RedisSubscription } from './implementations/redis/index.js';
 import type { ISubscription } from './interface.js';
 
-// Subscriptions are currently process-local (v1).
-// In v2, this might be backed by Redis Pub/Sub for horizontal scaling.
-export const subscription: ISubscription = new InMemorySubscription();
+const mode = process.env.DEPENDENCY_MODE || 'MOCK';
+const redisUrl = process.env.REDIS_URL;
+
+export const subscription: ISubscription = mode === 'LIVE'
+  ? new RedisSubscription(redisUrl)
+  : new InMemorySubscription();

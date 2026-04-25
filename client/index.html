@@ -496,6 +496,17 @@
     pingInterval = setInterval(() => send({ type: 'ping' }), 5000);
   }
 
+  document.addEventListener('visibilitychange', () => {
+    const visible = document.visibilityState === 'visible';
+    send({ type: 'visibility', visible });
+    if (visible) {
+      startPingLoop();
+    } else if (pingInterval) {
+      clearInterval(pingInterval);
+      pingInterval = null;
+    }
+  });
+
   async function restAction(path, method = 'POST', body = null) {
     try {
       const options = {

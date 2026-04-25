@@ -13,6 +13,7 @@ export class MockQueue implements IQueue {
       checked: false,
       joined_at: now,
       last_ping: now,
+      is_visible: true,
     };
     this.clients.set(token, client);
     return client;
@@ -113,15 +114,33 @@ export class MockQueue implements IQueue {
     if (c) c.last_ping = Date.now();
   }
 
+  async setVisibility(token: string, visible: boolean): Promise<void> {
+    const c = this.clients.get(token);
+    if (c) {
+      c.is_visible = visible;
+      if (visible) c.last_ping = Date.now();
+    }
+  }
+
   async evictStale(thresholdMs: number): Promise<QueueClient[]> {
     const now = Date.now();
     const evicted: QueueClient[] = [];
     for (const [token, client] of this.clients) {
-      if (!client.checked && now - client.last_ping > thresholdMs) {
+      if (!client.checked && client.is_visible && now - client.last_ping > thresholdMs) {
         this.clients.delete(token);
         evicted.push(client);
       }
     }
     return evicted;
+  }
+
+  async getPositionSnapshot(): Promise<Array<{token: string, absolutePosition: number, waitingPosition: number}>> {
+    const sorted = Array.from(this.clients.values()).sort((a, b) => a.seq - b.seq);
+    let waitIdx = 0;
+    return sorted.map((c, i) => ({
+      token: c.token,
+      absolutePosition: i,
+      waitingPosition: c.checked ? -1 : waitIdx++,
+    }));
   }
 }

@@ -1,11 +1,12 @@
 import { queueWorker } from '../../workers/queue/index.js';
 import type { ClientMessage } from '../../types.js';
-import { 
-  tokenToWs, 
-  send, 
-  broadcastToSubscribers, 
-  broadcastToAll, 
-  notifyPositionsBehind 
+import {
+  tokenToWs,
+  send,
+  publishToSubscribers,
+  broadcastToAll,
+  notifyPositionsBehind,
+  makeSubscriptionCallback,
 } from './shared.js';
 
 export interface WebSocketContext {
@@ -21,7 +22,7 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
       if (ctx.token) return;
       ctx.token = msg.token;
       tokenToWs.set(ctx.token, ws);
-      
+
       const joinRes = await queueWorker.join(ctx.token);
       send(ws, {
         type: 'joined',
@@ -30,14 +31,15 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
         waiting_position: joinRes.waitingPosition,
       });
 
-      const viewport = await queueWorker.subscribe(ctx.token, joinRes.absolutePosition - 30, joinRes.absolutePosition + 30);
+      const callback = makeSubscriptionCallback(ctx.token);
+      const viewport = await queueWorker.subscribe(ctx.token, joinRes.absolutePosition - 30, joinRes.absolutePosition + 30, callback);
       send(ws, {
         type: 'range_state',
         slots: viewport.slots,
         total: viewport.total,
       });
 
-      await broadcastToSubscribers(joinRes.client.seq, {
+      await publishToSubscribers(joinRes.client.seq, {
         type: 'range_update',
         seq: joinRes.client.seq,
         position: joinRes.absolutePosition,
@@ -52,6 +54,11 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
       send(ws, { type: 'pong' });
       break;
 
+    case 'visibility':
+      if (!ctx.token) return;
+      await queueWorker.setVisibility(ctx.token, msg.visible);
+      break;
+
     case 'check': {
       if (!ctx.token) return;
       const checkRes = await queueWorker.check(ctx.token);
@@ -60,29 +67,29 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
         return;
       }
       send(ws, { type: 'check_ok', position: checkRes.position, duration_ms: checkRes.duration_ms });
-      
-      await broadcastToAll({ 
-        type: 'winner', 
-        seq: checkRes.seq, 
-        position: checkRes.position, 
-        duration_ms: checkRes.duration_ms 
+
+      await broadcastToAll({
+        type: 'winner',
+        seq: checkRes.seq,
+        position: checkRes.position,
+        duration_ms: checkRes.duration_ms
       });
 
-      await broadcastToSubscribers(checkRes.seq, { 
-        type: 'range_update', 
-        seq: checkRes.seq, 
-        position: checkRes.position, 
-        state: 'checked' 
+      await publishToSubscribers(checkRes.seq, {
+        type: 'range_update',
+        seq: checkRes.seq,
+        position: checkRes.position,
+        state: 'checked'
       });
 
-      // Notify others that the waiting line has moved
       await notifyPositionsBehind(checkRes.seq);
       break;
     }
 
     case 'viewport_subscribe': {
       if (!ctx.token) return;
-      const viewRes = await queueWorker.subscribe(ctx.token, msg.from_position, msg.to_position);
+      const callback = makeSubscriptionCallback(ctx.token);
+      const viewRes = await queueWorker.subscribe(ctx.token, msg.from_position, msg.to_position, callback);
       send(ws, {
         type: 'range_state',
         slots: viewRes.slots,
@@ -99,10 +106,10 @@ export const handleDeparture = async (token: string) => {
 
   tokenToWs.delete(token);
 
-  await broadcastToSubscribers(client.seq, { 
-    type: 'left', 
-    seq: client.seq, 
-    departures_today: client.departures_today 
+  await publishToSubscribers(client.seq, {
+    type: 'left',
+    seq: client.seq,
+    departures_today: client.departures_today
   });
 
   await notifyPositionsBehind(client.seq);

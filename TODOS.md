@@ -9,21 +9,21 @@ Reflects actual state after the 2026-04-24 scope reset + `/plan-eng-review`. The
 ## Remediation Work (see `DESIGN.md` §7)
 
 ### Weekend 2.5 — Test scaffold
-- [ ] Install `vitest`; add `npm test`
-- [ ] First-wave `QueueWorker` unit tests against mock (join, check, leave, cleanup, getViewport)
-- [ ] Write `docs/testing.md` (one page, "every new code path ships with a test")
+- [x] Install `vitest`; add `npm test`
+- [x] First-wave `QueueWorker` unit tests against mock (join, check, leave, cleanup, getViewport)
+- [x] Write `docs/testing.md` (one page, "every new code path ships with a test")
 
 ### Weekend 4 — Subscription refactor + broadcast fix + heartbeat visibility
-- [ ] Reshape `ISubscription`: remove `getSubscribers`; add `publish(seq, message)`; callback in `subscribe`
-- [ ] Write `src/tools/subscription/implementations/redis/index.ts` using Redis PUBSUB (two clients, channel-per-bucket)
-- [ ] Update mock impl to match new shape
-- [ ] Refactor `src/handlers/websocket/shared.ts` + `src/workers/queue/index.ts` to use `publish`
-- [ ] Fix N+1 broadcast: one ZRANGE snapshot, compute positions by rank, publish per-bucket
-- [ ] Unit test: mutation triggers exactly one ZRANGE + one PUBLISH; no per-client Redis calls
-- [ ] Server: track `is_visible` per token; gate eviction on `is_visible === true`
-- [ ] Client: pause ping loop on `visibilitychange`; send `visibility` WS message on state change
-- [ ] Unit test: hidden client not evicted after 60s; revealed client given one ping window
-- [ ] **IRON-RULE regression test:** far-viewport (seq 50K) sees `range_update` when near-front (seq 1,001) leaves
+- [x] Reshape `ISubscription`: remove `getSubscribers`; add `publish(seq, message)`; callback in `subscribe`
+- [x] Write `src/tools/subscription/implementations/redis/index.ts` using Redis PUBSUB (two clients, channel-per-bucket)
+- [x] Update mock impl to match new shape
+- [x] Refactor `src/handlers/websocket/shared.ts` + `src/workers/queue/index.ts` to use `publish`
+- [x] Fix N+1 broadcast: one ZRANGE snapshot, compute positions by rank, publish per-bucket
+- [x] Unit test: mutation triggers exactly one ZRANGE + one PUBLISH; no per-client Redis calls
+- [x] Server: track `is_visible` per token; gate eviction on `is_visible === true`
+- [x] Client: pause ping loop on `visibilitychange`; send `visibility` WS message on state change
+- [x] Unit test: hidden client not evicted after 60s; revealed client given one ping window
+- [x] **IRON-RULE regression test:** far-viewport (seq 50K) sees `range_update` when near-front (seq 1,001) leaves
 
 ### Weekend 3 — Virtual scroll hardening
 - [ ] Extract `CHECKBOX_WIDTH_PX = 34` with comment

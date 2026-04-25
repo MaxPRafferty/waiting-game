@@ -5,8 +5,9 @@ export interface JoinMsg       { type: 'join';              token: string; }
 export interface PingMsg       { type: 'ping'; }
 export interface CheckMsg      { type: 'check';             token: string; }
 export interface ViewportSubMsg { type: 'viewport_subscribe'; from_position: number; to_position: number; }
+export interface VisibilityMsg  { type: 'visibility';          visible: boolean; }
 
-export type ClientMessage = JoinMsg | PingMsg | CheckMsg | ViewportSubMsg;
+export type ClientMessage = JoinMsg | PingMsg | CheckMsg | ViewportSubMsg | VisibilityMsg;
 
 // Server → Client
 export interface JoinedMsg {
