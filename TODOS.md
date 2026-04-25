@@ -26,13 +26,13 @@ Reflects actual state after the 2026-04-24 scope reset + `/plan-eng-review`. The
 - [x] **IRON-RULE regression test:** far-viewport (seq 50K) sees `range_update` when near-front (seq 1,001) leaves
 
 ### Weekend 3 — Virtual scroll hardening
-- [ ] Extract `CHECKBOX_WIDTH_PX = 34` with comment
-- [ ] Unit tests for `updateScroll` (clamp 0, clamp max, absolute, delta at boundaries)
-- [ ] Unit tests for `syncViewport` (only sends on range change)
-- [ ] Unit tests for `render` (slot present/absent/ghost/myChecked)
-- [ ] Correctness test at seq 1,000,000: rendered slot states + positions match injected `range_state`
+- [x] Extract `CHECKBOX_WIDTH_PX = 34` with comment
+- [x] Unit tests for `updateScroll` (clamp 0, clamp max, absolute, delta at boundaries)
+- [x] Unit tests for `syncViewport` (only sends on range change)
+- [x] Unit tests for `render` (slot present/absent/ghost/myChecked)
+- [x] Correctness test at seq 1,000,000: rendered slot states + positions match injected `range_state`
 - [ ] Manual: 2-tab smoke, rapid wheel 10s, window resize mid-scroll
-- [ ] Write `docs/virtual-scroll.md` (short)
+- [x] Write `docs/virtual-scroll.md` (short)
 
 ### Weekend 5 — Activity feed + endurance hall + polish
 - [ ] Activity feed UI panel (calls `GET /activity`, refreshes on `winner` WS event)
