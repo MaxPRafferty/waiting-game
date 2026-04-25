@@ -21,7 +21,7 @@ export class QueueWorker {
   }
 
   private async seedMockQueue() {
-    if (this.mockSeeded || process.env.DEPENDENCY_MODE === 'LIVE') return;
+    if (this.mockSeeded || process.env.DEPENDENCY_MODE !== 'MOCK') return;
     this.mockSeeded = true;
     for (let i = 0; i < QueueWorker.MOCK_SEED_COUNT; i++) {
       await queue.add(`__mock_${i}`);
