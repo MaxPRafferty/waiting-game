@@ -288,6 +288,33 @@
       display: block;
     }
 
+    .announcement-content {
+      display: block;
+      padding-right: 42px;
+    }
+
+    .announcement-close {
+      position: absolute;
+      top: 42px;
+      right: 10px;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 3px solid currentColor;
+      background: transparent;
+      color: inherit;
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.24);
+    }
+
+    .announcement-close:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
     .status {
       display: none;
     }
@@ -346,7 +373,6 @@
     }
 
     .strip {
-      min-height: clamp(280px, 46vh, 560px);
       position: relative;
       overflow: hidden;
     }
@@ -873,6 +899,7 @@
   const $chatLog        = document.getElementById('chat-log');
   const $chatInput      = document.getElementById('chat-input');
   const $chatPeerCount  = document.getElementById('chat-peer-count');
+  let announcementTimer = null;
 
   // ── P2P Chat (Trystero) ──
   let p2pRoom = null;
@@ -1148,6 +1175,11 @@
     updateScroll(targetOffset, true);
   });
   $lineTuner.addEventListener('input', () => updateScroll(Number($lineTuner.value), true));
+  document.addEventListener('click', (event) => {
+    if (!$announcement.classList.contains('visible')) return;
+    if ($announcement.contains(event.target)) return;
+    hideAnnouncement();
+  });
 
   function getOrdinal(n) {
     const s = ["th", "st", "nd", "rd"];
@@ -1200,11 +1232,36 @@
   }
 
   function showAnnouncement(text, tone = 'positive') {
-    $announcement.textContent = text;
+    if (announcementTimer) clearTimeout(announcementTimer);
+    $announcement.innerHTML = '';
+
+    const content = document.createElement('span');
+    content.className = 'announcement-content';
+    content.textContent = text;
+
+    const close = document.createElement('button');
+    close.className = 'announcement-close';
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Dismiss broadcast interruption');
+    close.textContent = '×';
+    close.addEventListener('click', (event) => {
+      event.stopPropagation();
+      hideAnnouncement();
+    });
+
+    $announcement.append(content, close);
     $announcement.style.backgroundColor = tone === 'positive' ? 'var(--green)' : 'var(--red)';
     $announcement.style.color = tone === 'positive' ? 'var(--black)' : '#fff8df';
     $announcement.classList.add('visible');
-    setTimeout(() => $announcement.classList.remove('visible'), 12000);
+    announcementTimer = setTimeout(hideAnnouncement, 12000);
+  }
+
+  function hideAnnouncement() {
+    if (announcementTimer) {
+      clearTimeout(announcementTimer);
+      announcementTimer = null;
+    }
+    $announcement.classList.remove('visible');
   }
 
   function showStatus(text, tone = 'neutral') {
