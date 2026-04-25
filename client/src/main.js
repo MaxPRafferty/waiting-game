@@ -114,7 +114,7 @@ let currentNeighborhood = -1;
 
 async function initP2P() {
   try {
-    const { joinRoom } = await import('https://cdn.skypack.dev/trystero/torrent');
+    const { joinRoom } = await import('https://cdn.skypack.dev/@trystero-p2p/torrent');
     const config = { appId: 'the-waiting-game-neighborhood' };
 
     window.updateNeighborhood = (bucketId) => {
@@ -155,6 +155,7 @@ async function initP2P() {
     });
 
     applySettings();
+    window.updateNeighborhood(Math.floor(scrollOffset / 100));
   } catch (err) {
     console.warn('[P2P] Failed to initialize Trystero:', err);
     $chatLog.innerHTML = `<div class="chat-msg"><em>Chat unavailable in this neighborhood</em></div>`;
