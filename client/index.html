@@ -110,7 +110,11 @@
   </div>
 
   <div class="footer">
-    The Waiting Game · The contest does not have an opinion about your choices.
+    <span>The Waiting Game · The contest does not have an opinion about your choices.</span>
+    <button class="chat-tab" id="chat-tab" type="button" aria-controls="chat-panel" aria-expanded="false" style="display: none;">
+      Neighborhood Transmission
+      <span id="chat-tab-peer-count">0 nearby</span>
+    </button>
   </div>
 
 </div>
@@ -118,7 +122,12 @@
 <div class="chat-panel" id="chat-panel" style="display: none;">
   <div class="chat-header">
     <span>Neighborhood Transmission</span>
-    <span id="chat-peer-count">0 nearby</span>
+    <div class="chat-header-actions">
+      <span id="chat-peer-count">0 nearby</span>
+      <button class="chat-minimize" id="chat-minimize" type="button" aria-label="Minimize neighborhood transmission" aria-controls="chat-panel">
+        _
+      </button>
+    </div>
   </div>
   <div class="chat-messages" id="chat-log"></div>
   <div class="chat-input-area">

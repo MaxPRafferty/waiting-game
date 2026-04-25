@@ -594,12 +594,43 @@ button {
 }
 
 .footer {
-  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 2px solid rgba(241, 221, 176, 0.18);
+  background: rgba(13, 20, 25, 0.9);
   font-size: 11px;
   color: var(--gray);
   font-family: var(--font-mono);
   text-transform: uppercase;
   flex-shrink: 0;
+}
+
+.chat-tab {
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 2px solid var(--cream);
+  background: var(--cyan);
+  color: var(--black);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  box-shadow: 3px 3px 0 var(--shadow);
+  white-space: nowrap;
+}
+
+.chat-tab:hover {
+  background: var(--yellow);
+}
+
+#chat-tab-peer-count {
+  color: var(--black);
 }
 
 /* ── Chat Panel ── */
@@ -609,7 +640,7 @@ button {
   bottom: 24px;
   right: 24px;
   width: min(390px, calc(100vw - 48px));
-  height: min(420px, calc(100vh - 120px));
+  height: min(320px, calc(100vh - 160px));
   background: rgba(13, 20, 25, 0.94);
   border: 3px solid var(--cream);
   display: flex;
@@ -630,7 +661,33 @@ button {
   text-transform: uppercase;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 10px;
+}
+
+.chat-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-minimize {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 20px;
+  border: 2px solid var(--black);
+  background: var(--paper);
+  color: var(--black);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 2px 2px 0 rgba(13, 20, 25, 0.28);
+}
+
+.chat-minimize:hover {
+  background: var(--yellow);
 }
 
 .chat-messages {
@@ -900,6 +957,23 @@ button {
   .broadcast {
     border-width: 3px;
     box-shadow: 0 0 0 3px var(--black), 6px 6px 0 var(--shadow);
+  }
+
+  .footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chat-tab {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .chat-panel {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    height: min(300px, calc(100vh - 120px));
   }
 
   .slot::after {

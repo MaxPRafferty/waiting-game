@@ -3,6 +3,7 @@ const STORAGE_KEY = 'wg_settings';
 const defaults = {
   soundEnabled: false,
   chatVisible: true,
+  chatMinimized: false,
   announcements: true,
   scanlineEffect: true,
 };
@@ -44,8 +45,18 @@ export function toggleSetting(key) {
 
 export function applySettings() {
   const chatPanel = document.getElementById('chat-panel');
+  const chatTab = document.getElementById('chat-tab');
+  const chatEnabled = settings.chatVisible;
+  const chatMinimized = settings.chatMinimized;
+
   if (chatPanel) {
-    chatPanel.style.display = settings.chatVisible ? 'flex' : 'none';
+    chatPanel.style.display = chatEnabled && !chatMinimized ? 'flex' : 'none';
+    chatPanel.setAttribute('aria-hidden', String(!chatEnabled || chatMinimized));
+  }
+
+  if (chatTab) {
+    chatTab.style.display = chatEnabled && chatMinimized ? 'inline-flex' : 'none';
+    chatTab.setAttribute('aria-expanded', String(chatEnabled && !chatMinimized));
   }
 
   const scanline = document.body;

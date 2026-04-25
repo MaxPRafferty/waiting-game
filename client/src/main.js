@@ -1,7 +1,7 @@
 import '../styles.css';
 import { getCopy } from '../copy.js';
 import { registerView, navigateTo, initRouter } from './router.js';
-import { loadSettings, getSetting, initSettingsView, applySettings } from './settings.js';
+import { loadSettings, getSetting, setSetting, initSettingsView, applySettings } from './settings.js';
 
 loadSettings();
 
@@ -54,10 +54,12 @@ const $btnFront = document.getElementById('btn-front');
 const $btnMe = document.getElementById('btn-me');
 const $btnBack = document.getElementById('btn-back');
 
-const $chatPanel = document.getElementById('chat-panel');
 const $chatLog = document.getElementById('chat-log');
 const $chatInput = document.getElementById('chat-input');
 const $chatPeerCount = document.getElementById('chat-peer-count');
+const $chatTab = document.getElementById('chat-tab');
+const $chatTabPeerCount = document.getElementById('chat-tab-peer-count');
+const $chatMinimize = document.getElementById('chat-minimize');
 let announcementTimer = null;
 
 // ── Menu ──
@@ -91,6 +93,20 @@ initSettingsView(document.getElementById('settings-content'));
 applySettings();
 initRouter();
 
+$chatMinimize.addEventListener('click', () => {
+  setSetting('chatMinimized', true);
+});
+
+$chatTab.addEventListener('click', () => {
+  setSetting('chatMinimized', false);
+  $chatInput.focus();
+});
+
+function setChatPeerCount(text) {
+  $chatPeerCount.textContent = text;
+  $chatTabPeerCount.textContent = text;
+}
+
 // ── P2P Chat (Trystero) ──
 let p2pRoom = null;
 let p2pSendAction = null;
@@ -112,7 +128,7 @@ async function initP2P() {
       p2pSendAction = send;
 
       $chatLog.innerHTML = `<div class="chat-msg"><em>Entered neighborhood ${bucketId + 1}</em></div>`;
-      $chatPeerCount.textContent = '0 nearby';
+      setChatPeerCount('0 nearby');
 
       p2pRoom.onPeerJoin(() => updatePeerCount());
       p2pRoom.onPeerLeave(() => updatePeerCount());
@@ -126,7 +142,7 @@ async function initP2P() {
 
     function updatePeerCount() {
       const count = Object.keys(p2pRoom.getPeers()).length;
-      $chatPeerCount.textContent = `${count} nearby`;
+      setChatPeerCount(`${count} nearby`);
     }
 
     $chatInput.addEventListener('keypress', (e) => {
@@ -138,17 +154,13 @@ async function initP2P() {
       }
     });
 
-    if (getSetting('chatVisible')) {
-      $chatPanel.style.display = 'flex';
-    }
+    applySettings();
   } catch (err) {
     console.warn('[P2P] Failed to initialize Trystero:', err);
     $chatLog.innerHTML = `<div class="chat-msg"><em>Chat unavailable in this neighborhood</em></div>`;
     $chatInput.disabled = true;
     $chatInput.placeholder = 'Chat unavailable';
-    if (getSetting('chatVisible')) {
-      $chatPanel.style.display = 'flex';
-    }
+    applySettings();
   }
 }
 
