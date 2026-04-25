@@ -3,6 +3,7 @@ import { subscription } from '../../tools/subscription/index.js';
 import { statistics } from '../../tools/statistics/index.js';
 import { leaderboard } from '../../tools/leaderboard/index.js';
 import { imageGenerator } from '../../tools/imageGenerator/index.js';
+import { endurance } from '../../tools/endurance/index.js';
 import { storage } from '../../tools/storage/index.js';
 import type { SubscriptionCallback } from '../../tools/subscription/interface.js';
 import type { ServerMessage } from '../../types.js';
@@ -79,6 +80,7 @@ export class QueueWorker {
     const absPos = this.MOCK_START_SIZE + result.position;
 
     await leaderboard.addWinner(result.seq, absPos, result.duration_ms);
+    await endurance.addEntry(result.seq, result.duration_ms);
 
     return {
       ...result,
@@ -131,8 +133,12 @@ export class QueueWorker {
     return await leaderboard.getRecentWinners(limit);
   }
 
-  async generateOgImage(position: number): Promise<Buffer> {
-    return await imageGenerator.generate(position);
+  async getEnduranceHall(limit = 10) {
+    return await endurance.getTop(limit);
+  }
+
+  async generateOgImage(seq: number): Promise<Buffer> {
+    return await imageGenerator.generate(seq);
   }
 
   async nameCheckbox(userId: string, token: string, name: string) {
@@ -173,7 +179,6 @@ export class QueueWorker {
       messages.push({
         type: 'winner',
         seq,
-        position: mockPos,
         duration_ms: mockDuration
       });
       messages.push({

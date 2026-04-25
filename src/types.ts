@@ -34,7 +34,6 @@ export interface CheckRejectedMsg {
 export interface WinnerMsg {
   type: 'winner';
   seq: number;
-  position: number;
   duration_ms: number;
 }
 

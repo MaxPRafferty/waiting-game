@@ -153,7 +153,7 @@
     }
 
     .slot.ghost {
-      opacity: 0.12;
+      opacity: 0;
     }
 
     .strip-pointer {
@@ -286,7 +286,7 @@
 <body>
 
 <div class="header">
-  <div class="position-number" id="pos-number">—</div>
+  <div class="position-number" id="pos-number" title="">—</div>
   <div class="position-label" id="pos-label">
     <div id="current-status">connecting...</div>
     <div id="started-status" style="font-size: 0.8em; margin-top: 4px; opacity: 0.8; display: none;"></div>
@@ -325,6 +325,17 @@
   </div>
 </div>
 
+<div class="info-panels" style="display:flex; gap:calc(8px * var(--scale)); padding:0 calc(32px * var(--scale)); flex-shrink:0;">
+  <div class="info-panel" id="activity-panel" style="flex:1; max-height:calc(140px * var(--scale)); overflow-y:auto; border:1px solid var(--border); padding:calc(8px * var(--scale)); font-size:calc(11px * var(--scale)); display:none;">
+    <div style="color:var(--muted); font-style:italic; margin-bottom:calc(4px * var(--scale));">Recent Activity</div>
+    <div id="activity-list"></div>
+  </div>
+  <div class="info-panel" id="endurance-panel" style="flex:1; max-height:calc(140px * var(--scale)); overflow-y:auto; border:1px solid var(--border); padding:calc(8px * var(--scale)); font-size:calc(11px * var(--scale)); display:none;">
+    <div style="color:var(--muted); font-style:italic; margin-bottom:calc(4px * var(--scale));">Endurance Hall</div>
+    <div id="endurance-list"></div>
+  </div>
+</div>
+
 <div class="footer">
   The Waiting Game &nbsp;·&nbsp; The contest does not have an opinion about your choices.
 </div>
@@ -339,6 +350,10 @@
     }
     return t;
   })();
+
+  // ── Copy ──
+  const copyModule = await import('./copy.js');
+  function getCopyText(eventType) { return copyModule.getCopy(eventType); }
 
   // ── State ──
   let mySeq = null;
@@ -668,23 +683,27 @@
     }
 
     const $current = document.getElementById('current-status');
+    const seqDisplay = mySeq !== null ? `#${mySeq}` : '—';
 
     if (myChecked) {
-      $posNumber.textContent = '✓';
+      $posNumber.textContent = `✓ ${seqDisplay}`;
       $posNumber.style.color = 'var(--primary)';
-      $current.textContent = `You won!`;
+      $posNumber.title = `Sequence ${mySeq}`;
+      $current.textContent = 'You won!';
       showStatus('The contest notes your victory.', 'positive');
-      document.title = '✓ The Waiting Game';
+      document.title = `✓ ${seqDisplay} — The Waiting Game`;
     } else if (waitPos === 0) {
-      $posNumber.textContent = '1st';
+      $posNumber.textContent = getOrdinal(waitPos + 1);
       $posNumber.style.color = 'var(--secondary)';
+      $posNumber.title = `Sequence ${mySeq}`;
       $current.textContent = 'First in line';
-      document.title = '1st — The Waiting Game';
+      document.title = `${seqDisplay} — The Waiting Game`;
     } else {
       $posNumber.textContent = getOrdinal(waitPos + 1);
       $posNumber.style.color = '';
+      $posNumber.title = `Sequence ${mySeq}`;
       $current.textContent = 'in line';
-      document.title = getOrdinal(waitPos + 1) + ' — The Waiting Game';
+      document.title = `${seqDisplay} — The Waiting Game`;
     }
   }
 
@@ -790,13 +809,47 @@
         break;
 
       case 'winner':
-        showAnnouncement(`A contestant at position #${msg.position + 1} has checked their box after ${formatDuration(msg.duration_ms)}.`);
+        showAnnouncement(`Contestant #${msg.seq} completed after ${formatDuration(msg.duration_ms)}. ${getCopyText('winner')}`);
         if (msg.seq !== mySeq) showStatus('Someone ahead of you has finished. The line adjusts.', 'neutral');
+        refreshActivityPanel();
         break;
     }
   }
 
+  // ── Activity & Endurance Panels ──
+  const $activityPanel = document.getElementById('activity-panel');
+  const $activityList = document.getElementById('activity-list');
+  const $endurancePanel = document.getElementById('endurance-panel');
+  const $enduranceList = document.getElementById('endurance-list');
+
+  async function refreshActivityPanel() {
+    try {
+      const res = await fetch('/activity');
+      if (!res.ok) return;
+      const data = await res.json();
+      $activityPanel.style.display = 'block';
+      $activityList.innerHTML = (data.activity || []).map(w =>
+        `<div style="margin-bottom:2px;">#${w.seq} — ${formatDuration(w.duration_ms)}</div>`
+      ).join('') || '<div style="color:var(--muted);">No activity yet.</div>';
+    } catch (_) {}
+  }
+
+  async function refreshEndurancePanel() {
+    try {
+      const res = await fetch('/endurance');
+      if (!res.ok) return;
+      const data = await res.json();
+      $endurancePanel.style.display = 'block';
+      $enduranceList.innerHTML = (data.entries || []).map((e, i) =>
+        `<div style="margin-bottom:2px;">${i + 1}. #${e.seq} — ${formatDuration(e.duration_ms)}</div>`
+      ).join('') || '<div style="color:var(--muted);">No records yet.</div>';
+    } catch (_) {}
+  }
+
   connect();
+  refreshActivityPanel();
+  refreshEndurancePanel();
+  setInterval(refreshEndurancePanel, 30000);
 })();
 </script>
 </body>

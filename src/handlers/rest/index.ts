@@ -139,11 +139,10 @@ export const checkHandler = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not eligible or already checked' });
     }
 
-    await broadcastToAll({ 
-      type: 'winner', 
-      seq: result.seq, 
-      position: result.position, 
-      duration_ms: result.duration_ms 
+    await broadcastToAll({
+      type: 'winner',
+      seq: result.seq,
+      duration_ms: result.duration_ms
     });
 
     await publishToSubscribers(result.seq, {
@@ -192,14 +191,34 @@ export const leaderboardHandler = async (_req: Request, res: Response) => {
   }
 };
 
+export const activityHandler = async (_req: Request, res: Response) => {
+  try {
+    const winners = await queueWorker.getLeaderboard(20);
+    return res.json({ activity: winners });
+  } catch (error) {
+    console.error('Activity error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const enduranceHandler = async (_req: Request, res: Response) => {
+  try {
+    const entries = await queueWorker.getEnduranceHall(10);
+    return res.json({ entries });
+  } catch (error) {
+    console.error('Endurance error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const ogImageHandler = async (req: Request, res: Response) => {
-  const position = parseInt(req.query.position as string);
-  if (isNaN(position)) {
-    return res.status(400).json({ error: 'Invalid position parameter' });
+  const seq = parseInt(req.query.seq as string);
+  if (isNaN(seq)) {
+    return res.status(400).json({ error: 'Invalid seq parameter' });
   }
 
   try {
-    const buffer = await queueWorker.generateOgImage(position);
+    const buffer = await queueWorker.generateOgImage(seq);
     res.setHeader('Content-Type', 'image/png');
     return res.send(buffer);
   } catch (error) {

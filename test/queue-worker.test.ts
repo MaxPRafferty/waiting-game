@@ -28,6 +28,13 @@ vi.mock('../src/tools/imageGenerator/index.js', () => ({
   imageGenerator: { generate: vi.fn().mockResolvedValue(Buffer.from('fake')) },
 }));
 
+vi.mock('../src/tools/endurance/index.js', () => ({
+  endurance: {
+    addEntry: vi.fn().mockResolvedValue(undefined),
+    getTop: vi.fn().mockResolvedValue([]),
+  },
+}));
+
 vi.mock('../src/tools/storage/index.js', () => ({
   storage: {
     list: vi.fn().mockResolvedValue([]),

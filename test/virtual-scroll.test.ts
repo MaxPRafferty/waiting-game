@@ -257,6 +257,16 @@ describe('virtual-scroll', () => {
     });
   });
 
+  describe('ghost fade alignment', () => {
+    it('ghost state resolves correctly for departed slots', () => {
+      const ghost = { seq: 42, position: 500042, state: 'ghost' };
+      const result = resolveSlotState(ghost, 100, false, [ghost]);
+      expect(result.isGhost).toBe(true);
+      expect(result.isChecked).toBe(false);
+      expect(result.isMine).toBe(false);
+    });
+  });
+
   describe('correctness at seq 1,000,000', () => {
     it('rendered slot states match injected range_state', () => {
       const baseSeq = 1_000_000;

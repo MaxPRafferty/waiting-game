@@ -20,7 +20,7 @@ export class SatoriImageGenerator implements IImageGenerator {
     throw new Error('No valid font file found for image generation');
   }
 
-  async generate(position: number): Promise<Buffer> {
+  async generate(seq: number): Promise<Buffer> {
     const fontData = await this.getFontData();
 
     const svg = await satori(
@@ -59,7 +59,7 @@ export class SatoriImageGenerator implements IImageGenerator {
                   fontWeight: 'bold',
                   marginBottom: '20px',
                 },
-                children: `#${(position + 1).toLocaleString()}`,
+                children: `#${seq.toLocaleString()}`,
               },
             },
             {

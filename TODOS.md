@@ -35,19 +35,19 @@ Reflects actual state after the 2026-04-24 scope reset + `/plan-eng-review`. The
 - [x] Write `docs/virtual-scroll.md` (short)
 
 ### Weekend 5 — Activity feed + endurance hall + polish
-- [ ] Activity feed UI panel (calls `GET /activity`, refreshes on `winner` WS event)
-- [ ] New `endurance` tool (mock + Redis ZSET by duration_ms desc)
-- [ ] `GET /endurance` endpoint, top 10 returned
-- [ ] Endurance hall UI panel (second toggleable panel)
-- [ ] Change `.slot.ghost { opacity: 0 }` so fade aligns with 30s delete; regression test
-- [ ] `client/src/copy.ts` with 5 phrasings per event type; `getRandom` utility; no-repeat-in-session guarantee
-- [ ] Winner banner uses cycled copy; test consecutive events produce different strings
-- [ ] Unit tests for `getOrdinal`: 1-3, 11-13, 21-23, 111-113, 1,000,001
-- [ ] Unit test for UTC midnight departure counter rollover
-- [ ] OG image endpoint signature: `GET /og-image?seq=N`; Satori template renders `#N`
-- [ ] Winner WS payload drops `position` (public payload is `{ seq, duration_ms }`)
-- [ ] Tab title format: `#N — The Waiting Game` during waiting; `✓ #N` after winning
-- [ ] Header shows position during play; hover reveals seq
+- [x] Activity feed UI panel (calls `GET /activity`, refreshes on `winner` WS event)
+- [x] New `endurance` tool (mock + Redis ZSET by duration_ms desc)
+- [x] `GET /endurance` endpoint, top 10 returned
+- [x] Endurance hall UI panel (second toggleable panel)
+- [x] Change `.slot.ghost { opacity: 0 }` so fade aligns with 30s delete; regression test
+- [x] `client/src/copy.ts` with 5 phrasings per event type; `getRandom` utility; no-repeat-in-session guarantee
+- [x] Winner banner uses cycled copy; test consecutive events produce different strings
+- [x] Unit tests for `getOrdinal`: 1-3, 11-13, 21-23, 111-113, 1,000,001
+- [x] Unit test for UTC midnight departure counter rollover
+- [x] OG image endpoint signature: `GET /og-image?seq=N`; Satori template renders `#N`
+- [x] Winner WS payload drops `position` (public payload is `{ seq, duration_ms }`)
+- [x] Tab title format: `#N — The Waiting Game` during waiting; `✓ #N` after winning
+- [x] Header shows position during play; hover reveals seq
 
 ### Weekend 7 — Scope cleanup + P2P chat polish
 **Deletion order (respects import graph):**

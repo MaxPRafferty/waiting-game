@@ -71,7 +71,6 @@ export const handleMessage = async (msg: ClientMessage, ctx: WebSocketContext) =
       await broadcastToAll({
         type: 'winner',
         seq: checkRes.seq,
-        position: checkRes.position,
         duration_ms: checkRes.duration_ms
       });
 
